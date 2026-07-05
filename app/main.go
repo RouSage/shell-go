@@ -12,6 +12,7 @@ type builtin = string
 const (
 	builtinExit builtin = "exit"
 	builtinEcho builtin = "echo"
+	builtinType builtin = "type"
 )
 
 func main() {
@@ -34,9 +35,22 @@ func main() {
 			break
 		} else if strings.HasPrefix(command, builtinEcho+" ") {
 			fmt.Println(strings.TrimPrefix(command, builtinEcho+" "))
+		} else if strings.HasPrefix(command, builtinType+" ") {
+			typeCMD(strings.TrimPrefix(command, builtinType+" "))
 		} else {
 			// Print the error message
 			fmt.Println(command + ": command not found")
 		}
+	}
+}
+
+func typeCMD(command string) {
+	switch command {
+	case builtinEcho:
+	case builtinExit:
+	case builtinType:
+		fmt.Println(command + "is a shell builtin")
+	default:
+		fmt.Println(command + ": not found")
 	}
 }
