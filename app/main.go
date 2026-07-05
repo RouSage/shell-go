@@ -15,9 +15,10 @@ const (
 	builtinEcho builtin = "echo"
 	builtinExit builtin = "exit"
 	builtinType builtin = "type"
+	builtinPwd  builtin = "pwd"
 )
 
-var builtins = []builtin{builtinEcho, builtinExit, builtinType}
+var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd}
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
@@ -41,13 +42,7 @@ func main() {
 		if slices.Contains(builtins, args[0]) {
 			builtinCMD(args[0], args[1:]...)
 		} else if _, err := lookPath(args[0]); err == nil {
-			cmd := exec.Command(args[0], args[1:]...)
-			cmd.Stderr = os.Stderr
-			cmd.Stdout = os.Stdout
-			err := cmd.Run()
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-			}
+			execCMD(args[0], args[1:]...)
 		} else {
 			// Print the error message
 			fmt.Println(args[0] + ": command not found")
@@ -55,12 +50,14 @@ func main() {
 	}
 }
 
-func builtinCMD(command string, args ...string) {
+func builtinCMD(command builtin, args ...string) {
 	switch command {
 	case builtinExit:
 		os.Exit(0)
 	case builtinEcho:
 		fmt.Println(strings.Join(args, " "))
+	case builtinPwd:
+		pwdCMD()
 	case builtinType:
 		typeCMD(args[0])
 	}
@@ -73,6 +70,26 @@ func typeCMD(command string) {
 		fmt.Printf("%s is %s\n", command, path)
 	} else {
 		fmt.Printf("%s: not found\n", command)
+	}
+}
+
+func pwdCMD() {
+	dir, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+
+	fmt.Println(dir)
+}
+
+func execCMD(command string, args ...string) {
+	cmd := exec.Command(command, args...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+
+	err := cmd.Run()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
 	}
 }
 
