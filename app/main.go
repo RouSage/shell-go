@@ -4,16 +4,20 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
+	"slices"
 	"strings"
 )
 
 type builtin = string
 
 const (
-	builtinExit builtin = "exit"
 	builtinEcho builtin = "echo"
+	builtinExit builtin = "exit"
 	builtinType builtin = "type"
 )
+
+var builtins = []builtin{builtinEcho, builtinExit, builtinType}
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
@@ -45,10 +49,12 @@ func main() {
 }
 
 func typeCMD(command string) {
-	switch command {
-	case builtinEcho, builtinExit, builtinType:
+	if slices.Contains(builtins, command) {
 		fmt.Println(command + " is a shell builtin")
-	default:
+	} else if path, err := exec.LookPath(command); err == nil {
+		fmt.Printf("%s is %s\n", command, path)
+	} else {
 		fmt.Println(command + ": not found")
+
 	}
 }
