@@ -88,13 +88,24 @@ func pwdCMD() {
 }
 
 func cdCMD(path string) {
-	_, err := os.Stat(path)
+	dir := path
+
+	if path == "~" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		dir = home
+	}
+
+	_, err := os.Stat(dir)
 	if errors.Is(err, fs.ErrNotExist) {
-		fmt.Printf("%s: %s: No such file or directory\n", builtinCd, path)
+		fmt.Printf("%s: %s: No such file or directory\n", builtinCd, dir)
 		return
 	}
 
-	err = os.Chdir(path)
+	err = os.Chdir(dir)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
