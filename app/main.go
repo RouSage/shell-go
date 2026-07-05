@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"slices"
@@ -16,9 +18,10 @@ const (
 	builtinExit builtin = "exit"
 	builtinType builtin = "type"
 	builtinPwd  builtin = "pwd"
+	builtinCd   builtin = "cd"
 )
 
-var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd}
+var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd, builtinCd}
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
@@ -58,6 +61,8 @@ func builtinCMD(command builtin, args ...string) {
 		fmt.Println(strings.Join(args, " "))
 	case builtinPwd:
 		pwdCMD()
+	case builtinCd:
+		cdCMD(args[0])
 	case builtinType:
 		typeCMD(args[0])
 	}
@@ -80,6 +85,19 @@ func pwdCMD() {
 	}
 
 	fmt.Println(dir)
+}
+
+func cdCMD(path string) {
+	_, err := os.Stat(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		fmt.Printf("%s: %s: No such file or directory\n", builtinCd, path)
+		return
+	}
+
+	err = os.Chdir(path)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
 }
 
 func execCMD(command string, args ...string) {
