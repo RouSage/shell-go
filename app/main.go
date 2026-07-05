@@ -46,9 +46,7 @@ func main() {
 
 func typeCMD(command string) {
 	switch command {
-	case builtinEcho:
-	case builtinExit:
-	case builtinType:
+	case builtinEcho, builtinExit, builtinType:
 		fmt.Println(command + "is a shell builtin")
 	default:
 		fmt.Println(command + ": not found")
