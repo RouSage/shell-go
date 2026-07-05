@@ -31,30 +31,51 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Error reading input:", err)
 			os.Exit(1)
 		}
-		// Trim whitespace from the command
 		command = strings.TrimSpace(command)
 
-		// Builtin "exit" command
-		if command == builtinExit {
-			break
-		} else if strings.HasPrefix(command, builtinEcho+" ") {
-			fmt.Println(strings.TrimPrefix(command, builtinEcho+" "))
-		} else if strings.HasPrefix(command, builtinType+" ") {
-			typeCMD(strings.TrimPrefix(command, builtinType+" "))
+		args := strings.Fields(command)
+		if len(args) == 0 {
+			os.Exit(0)
+		}
+
+		if slices.Contains(builtins, args[0]) {
+			builtinCMD(args[0], args[1:]...)
+		} else if _, err := lookPath(args[0]); err == nil {
+			cmd := exec.Command(args[0], args[1:]...)
+			cmd.Stderr = os.Stderr
+			cmd.Stdout = os.Stdout
+			err := cmd.Run()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			}
 		} else {
 			// Print the error message
-			fmt.Println(command + ": command not found")
+			fmt.Println(args[0] + ": command not found")
 		}
+	}
+}
+
+func builtinCMD(command string, args ...string) {
+	switch command {
+	case builtinExit:
+		os.Exit(0)
+	case builtinEcho:
+		fmt.Println(strings.Join(args, " "))
+	case builtinType:
+		typeCMD(args[0])
 	}
 }
 
 func typeCMD(command string) {
 	if slices.Contains(builtins, command) {
-		fmt.Println(command + " is a shell builtin")
-	} else if path, err := exec.LookPath(command); err == nil {
+		fmt.Printf("%s is a shell builtin\n", command)
+	} else if path, err := lookPath(command); err == nil {
 		fmt.Printf("%s is %s\n", command, path)
 	} else {
-		fmt.Println(command + ": not found")
-
+		fmt.Printf("%s: not found\n", command)
 	}
+}
+
+func lookPath(command string) (string, error) {
+	return exec.LookPath(command)
 }
