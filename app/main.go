@@ -7,6 +7,13 @@ import (
 	"strings"
 )
 
+type builtin = string
+
+const (
+	builtinExit builtin = "exit"
+	builtinEcho builtin = "echo"
+)
+
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 	for {
@@ -23,11 +30,13 @@ func main() {
 		command = strings.TrimSpace(command)
 
 		// Builtin "exit" command
-		if command == "exit" {
+		if command == builtinExit {
 			break
+		} else if strings.HasPrefix(command, builtinEcho+" ") {
+			fmt.Println(strings.TrimPrefix(command, builtinEcho+" "))
+		} else {
+			// Print the error message
+			fmt.Println(command + ": command not found")
 		}
-
-		// Print the error message
-		fmt.Printf("%s: command not found\n", command)
 	}
 }
