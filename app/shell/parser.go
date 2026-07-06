@@ -7,6 +7,7 @@ func parseArgs(command string) []string {
 	var current strings.Builder
 	hasToken := false
 	inSingleQuote := false
+	inDoubleQuote := false
 
 	for _, r := range command {
 		switch {
@@ -16,8 +17,21 @@ func parseArgs(command string) []string {
 			} else {
 				current.WriteRune(r)
 			}
+		case inDoubleQuote:
+			if r == '"' {
+				inDoubleQuote = false
+			} else {
+				current.WriteRune(r)
+			}
 		case r == '\'':
-			inSingleQuote = true
+			if inDoubleQuote {
+				current.WriteRune(r)
+			} else {
+				inSingleQuote = true
+				hasToken = true
+			}
+		case r == '"':
+			inDoubleQuote = true
 			hasToken = true
 		case r == ' ' || r == '\t':
 			if hasToken {
