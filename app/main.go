@@ -37,7 +37,7 @@ func main() {
 		}
 		command = strings.TrimSpace(command)
 
-		args := strings.Fields(command)
+		args := parseArgs(command)
 		if len(args) == 0 {
 			os.Exit(0)
 		}
@@ -51,6 +51,42 @@ func main() {
 			fmt.Println(args[0] + ": command not found")
 		}
 	}
+}
+
+func parseArgs(command string) []string {
+	var args []string
+	var current strings.Builder
+	hasToken := false
+	inSingleQuote := false
+
+	for _, r := range command {
+		switch {
+		case inSingleQuote:
+			if r == '\'' {
+				inSingleQuote = false
+			} else {
+				current.WriteRune(r)
+			}
+		case r == '\'':
+			inSingleQuote = true
+			hasToken = true
+		case r == ' ' || r == '\t':
+			if hasToken {
+				args = append(args, current.String())
+				current.Reset()
+				hasToken = false
+			}
+		default:
+			current.WriteRune(r)
+			hasToken = true
+		}
+	}
+
+	if hasToken {
+		args = append(args, current.String())
+	}
+
+	return args
 }
 
 func builtinCMD(command builtin, args ...string) {
