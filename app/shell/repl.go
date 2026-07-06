@@ -38,6 +38,6 @@ func handleCommand(command string, args []string) {
 		execCMD(command, args...)
 	} else {
 		// Print the error message
-		fmt.Printf("%s: command not found", command)
+		fmt.Printf("%s: command not found\n", command)
 	}
 }
