@@ -47,25 +47,20 @@ func NewCommand(command string) *Command {
 
 func (c *Command) handle() {
 	if len(c.args) > 2 {
+		var fileToClose *os.File
+
 		arg := c.args[len(c.args)-2]
-		if slices.Contains(redirectOperators, arg) {
-			outputFile, err := os.Create(c.args[len(c.args)-1])
-			if err != nil {
-				fmt.Fprintln(c.stderr, err)
-			}
-			defer outputFile.Close()
+		switch arg {
+		case ">", "1>":
+			c.args = handleRedirect(c.args, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, &c.stdout, &fileToClose)
+		case "2>":
+			c.args = handleRedirect(c.args, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, &c.stderr, &fileToClose)
+		case ">>", "1>>":
+			c.args = handleRedirect(c.args, os.O_APPEND|os.O_CREATE|os.O_WRONLY, &c.stdout, &fileToClose)
+		}
 
-			// Redirect stdout
-			if arg == ">" || arg == "1>" {
-				c.stdout = outputFile
-				c.args = c.args[:len(c.args)-2]
-			}
-
-			// Redirect stderr
-			if c.args[len(c.args)-2] == "2>" {
-				c.stderr = outputFile
-				c.args = c.args[:len(c.args)-2]
-			}
+		if fileToClose != nil {
+			defer fileToClose.Close()
 		}
 	}
 
