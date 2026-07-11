@@ -8,6 +8,7 @@ func parseArgs(command string) []string {
 	hasToken := false
 	inSingleQuote := false
 	inDoubleQuote := false
+	isEscaped := false
 
 	for _, r := range command {
 		switch {
@@ -23,6 +24,11 @@ func parseArgs(command string) []string {
 			} else {
 				current.WriteRune(r)
 			}
+		case isEscaped:
+			current.WriteRune(r)
+			isEscaped = false
+		case r == '\\':
+			isEscaped = true
 		case r == '\'':
 			if inDoubleQuote {
 				current.WriteRune(r)
