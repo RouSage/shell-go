@@ -3,6 +3,7 @@ package shell
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -25,7 +26,7 @@ var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd, buil
 type Command struct {
 	command string
 	args    []string
-	stdout  *os.File
+	stdout  io.Writer
 }
 
 func NewCommand(command string) *Command {
@@ -84,10 +85,7 @@ func (c *Command) execCMD() {
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = c.stdout
 
-	err := cmd.Run()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	}
+	cmd.Run()
 }
 
 func (c *Command) typeCMD() {
