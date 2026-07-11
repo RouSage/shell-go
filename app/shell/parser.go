@@ -19,7 +19,17 @@ func parseArgs(command string) []string {
 				current.WriteRune(r)
 			}
 		case inDoubleQuote:
-			if r == '"' {
+			if isEscaped {
+				if r == '"' || r == '\\' || r == '$' || r == '`' || r == '\n' {
+					current.WriteRune(r)
+				} else {
+					current.WriteRune('\\')
+					current.WriteRune(r)
+				}
+				isEscaped = false
+			} else if r == '\\' {
+				isEscaped = true
+			} else if r == '"' {
 				inDoubleQuote = false
 			} else {
 				current.WriteRune(r)
