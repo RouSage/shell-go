@@ -57,6 +57,8 @@ func (c *Command) handle() {
 			c.args = handleRedirect(c.args, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, &c.stderr, &fileToClose)
 		case ">>", "1>>":
 			c.args = handleRedirect(c.args, os.O_APPEND|os.O_CREATE|os.O_WRONLY, &c.stdout, &fileToClose)
+		case "2>>":
+			c.args = handleRedirect(c.args, os.O_APPEND|os.O_CREATE|os.O_WRONLY, &c.stderr, &fileToClose)
 		}
 
 		if fileToClose != nil {
