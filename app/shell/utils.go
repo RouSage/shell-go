@@ -12,7 +12,7 @@ func lookPath(command string) (string, error) {
 }
 
 func handleRedirect(args []string, flag int, writer *io.Writer, file **os.File) []string {
-	outputFile, err := os.OpenFile(args[len(args)-1], flag, 0666)
+	outputFile, err := os.OpenFile(args[len(args)-1], flag, 0644)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
