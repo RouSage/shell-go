@@ -22,11 +22,13 @@ const (
 )
 
 var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd, builtinCd}
+var redirectOperators = []string{">", "1>", "2>"}
 
 type Command struct {
 	command string
 	args    []string
 	stdout  io.Writer
+	stderr  io.Writer
 }
 
 func NewCommand(command string) *Command {
@@ -39,20 +41,32 @@ func NewCommand(command string) *Command {
 		command: args[0],
 		args:    args[1:],
 		stdout:  os.Stdout,
+		stderr:  os.Stderr,
 	}
 }
 
 func (c *Command) handle() {
-	// Redirect stdout
-	if len(c.args) > 2 && (c.args[len(c.args)-2] == ">" || c.args[len(c.args)-2] == "1>") {
-		outputFile, err := os.Create(c.args[len(c.args)-1])
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		defer outputFile.Close()
+	if len(c.args) > 2 {
+		arg := c.args[len(c.args)-2]
+		if slices.Contains(redirectOperators, arg) {
+			outputFile, err := os.Create(c.args[len(c.args)-1])
+			if err != nil {
+				fmt.Fprintln(c.stderr, err)
+			}
+			defer outputFile.Close()
 
-		c.stdout = outputFile
-		c.args = c.args[:len(c.args)-2]
+			// Redirect stdout
+			if arg == ">" || arg == "1>" {
+				c.stdout = outputFile
+				c.args = c.args[:len(c.args)-2]
+			}
+
+			// Redirect stderr
+			if c.args[len(c.args)-2] == "2>" {
+				c.stderr = outputFile
+				c.args = c.args[:len(c.args)-2]
+			}
+		}
 	}
 
 	if slices.Contains(builtins, c.command) {
@@ -82,7 +96,7 @@ func (c *Command) builtinCMD() {
 
 func (c *Command) execCMD() {
 	cmd := exec.Command(c.command, c.args...)
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = c.stderr
 	cmd.Stdout = c.stdout
 
 	cmd.Run()
@@ -103,7 +117,7 @@ func (c *Command) typeCMD() {
 func (c *Command) pwdCMD() {
 	dir, err := os.Getwd()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(c.stderr, err)
 	}
 
 	fmt.Fprintln(c.stdout, dir)
@@ -115,7 +129,7 @@ func (c *Command) cdCMD() {
 	if dir == "~" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(c.stderr, err)
 			return
 		}
 		dir = home
@@ -129,6 +143,6 @@ func (c *Command) cdCMD() {
 
 	err = os.Chdir(dir)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(c.stderr, err)
 	}
 }
