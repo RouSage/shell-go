@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"slices"
 	"strings"
 )
 
@@ -22,22 +21,11 @@ func REPL() {
 		}
 		command = strings.TrimSpace(command)
 
-		args := parseArgs(command)
-		if len(args) == 0 {
+		cmd := NewCommand(command)
+		if cmd == nil {
 			continue
 		}
 
-		handleCommand(args[0], args[1:])
-	}
-}
-
-func handleCommand(command string, args []string) {
-	if slices.Contains(builtins, command) {
-		builtinCMD(command, args...)
-	} else if _, err := lookPath(command); err == nil {
-		execCMD(command, args...)
-	} else {
-		// Print the error message
-		fmt.Printf("%s: command not found\n", command)
+		cmd.handle()
 	}
 }
