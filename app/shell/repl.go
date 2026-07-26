@@ -13,9 +13,10 @@ func REPL() {
 		readline.PcItem(builtinEcho),
 		readline.PcItem(builtinExit),
 	)
+	shellCompleter := NewCompleter(completer)
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:          "$ ",
-		AutoComplete:    completer,
+		AutoComplete:    shellCompleter,
 		InterruptPrompt: "^C",
 	})
 	if err != nil {
