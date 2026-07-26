@@ -78,9 +78,23 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	for i, suffix := range newLine {
 		names[i] = prefix + string(suffix)
 	}
-	slices.Sort(names)
 
-	fmt.Fprintf(os.Stdout, "\n%s\n$ %s", strings.Join(names, "  "), prefix)
+	// On subsequent <TAB>s, do a partial completion with the longest common prefix
+	commonPrefix := []rune(names[0])
+	for _, match := range names {
+		runes := []rune(match)
+
+		for i := range commonPrefix {
+			if len(runes) <= i || runes[i] != commonPrefix[i] {
+				commonPrefix = commonPrefix[:i]
+				break
+			}
+		}
+	}
+
+	// List matches in alphabetical order
+	slices.Sort(names)
+	fmt.Fprintf(os.Stdout, "\n%s\n$ %s", strings.Join(names, "  "), string(commonPrefix))
 
 	return nil, 0
 }
