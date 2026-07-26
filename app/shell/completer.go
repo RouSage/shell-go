@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
+	"strings"
 
 	"github.com/chzyer/readline"
 )
@@ -46,20 +47,20 @@ func NewCompleter(completers ...readline.PrefixCompleterInterface) *Completer {
 func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	newLine, length := c.AutoCompleter.Do(line, pos)
 
+	// Ring the bell on no matches
 	if len(newLine) == 0 {
 		c.reset()
 		bell()
 		return nil, 0
 	}
+	// One match, let readline handle it (autocomplete)
 	if len(newLine) == 1 {
 		c.reset()
 		return newLine, length
 	}
 
-	sort.Slice(newLine, func(i, j int) bool {
-		return string(newLine[i]) < string(newLine[j])
-	})
-
+	// Multiple matches: bell on first <TAB>
+	// list matches on the second <TAB>
 	if !(c.belled && c.belledFor == string(line)) {
 		c.belled = true
 		c.belledFor = string(line)
@@ -68,7 +69,17 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	}
 
 	c.reset()
-	return newLine, length
+
+	prefix := string(line[:pos])
+	names := make([]string, len(newLine))
+	for i, suffix := range newLine {
+		names[i] = prefix + string(suffix)
+	}
+	slices.Sort(names)
+
+	fmt.Fprintf(os.Stdout, "\n%s\n$ %s", strings.Join(names, "  "), prefix)
+
+	return nil, 0
 }
 
 func (c *Completer) reset() {
