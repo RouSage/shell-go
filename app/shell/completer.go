@@ -62,24 +62,13 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 		return newLine, length
 	}
 
-	// Multiple matches: bell on first <TAB>
-	// list matches on the second <TAB>
-	if !(c.belled && c.belledFor == string(line)) {
-		c.belled = true
-		c.belledFor = string(line)
-		bell()
-		return nil, 0
-	}
-
-	c.reset()
-
+	// On subsequent <TAB>s, do a partial completion with the longest common prefix
 	prefix := string(line[:pos])
 	names := make([]string, len(newLine))
 	for i, suffix := range newLine {
 		names[i] = prefix + string(suffix)
 	}
 
-	// On subsequent <TAB>s, do a partial completion with the longest common prefix
 	commonPrefix := []rune(names[0])
 	for _, match := range names {
 		runes := []rune(match)
@@ -96,6 +85,17 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 		diff := len(commonPrefix) - len(prefix)
 		return [][]rune{commonPrefix[len(commonPrefix)-diff:]}, 1
 	}
+
+	// Multiple matches: bell on first <TAB>
+	// list matches on the second <TAB>
+	if !(c.belled && c.belledFor == string(line)) {
+		c.belled = true
+		c.belledFor = string(line)
+		bell()
+		return nil, 0
+	}
+
+	c.reset()
 
 	// List matches in alphabetical order
 	slices.Sort(names)
