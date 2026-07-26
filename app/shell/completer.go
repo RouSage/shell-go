@@ -92,9 +92,14 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 		}
 	}
 
+	if len(commonPrefix) > len(prefix) {
+		diff := len(commonPrefix) - len(prefix)
+		return [][]rune{commonPrefix[len(commonPrefix)-diff:]}, 1
+	}
+
 	// List matches in alphabetical order
 	slices.Sort(names)
-	fmt.Fprintf(os.Stdout, "\n%s\n$ %s", strings.Join(names, "  "), string(commonPrefix))
+	fmt.Fprintf(os.Stdout, "\n%s\n$ %s", strings.Join(names, "  "), string(prefix))
 
 	return nil, 0
 }
