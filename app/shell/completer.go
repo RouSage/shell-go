@@ -34,7 +34,10 @@ func NewCompleter(completers ...readline.PrefixCompleterInterface) *Completer {
 				continue
 			}
 			if !info.IsDir() && info.Mode().Perm()&0111 != 0 {
-				completers = append(completers, readline.PcItem(info.Name()))
+				// Skip builtins so that this shell handles them separately from the system
+				if !slices.Contains(builtins, info.Name()) {
+					completers = append(completers, readline.PcItem(info.Name()))
+				}
 			}
 		}
 	}
