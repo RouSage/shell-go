@@ -42,6 +42,11 @@ func NewCompleter(completers ...readline.PrefixCompleterInterface) *Completer {
 		}
 	}
 
+	fileCompletions := readline.PcItemDynamic(listFiles("./"))
+	for _, completer := range completers {
+		completer.SetChildren([]readline.PrefixCompleterInterface{fileCompletions})
+	}
+
 	completer := readline.NewPrefixCompleter(completers...)
 
 	return &Completer{AutoCompleter: completer}
@@ -69,17 +74,7 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 		names[i] = prefix + string(suffix)
 	}
 
-	commonPrefix := []rune(names[0])
-	for _, match := range names {
-		runes := []rune(match)
-
-		for i := range commonPrefix {
-			if len(runes) <= i || runes[i] != commonPrefix[i] {
-				commonPrefix = commonPrefix[:i]
-				break
-			}
-		}
-	}
+	commonPrefix := longestCommonPrefix(names)
 
 	if len(commonPrefix) > len(prefix) {
 		diff := len(commonPrefix) - len(prefix)
@@ -111,4 +106,39 @@ func (c *Completer) reset() {
 
 func bell() {
 	fmt.Fprintf(os.Stderr, "%c", 0x07)
+}
+
+func longestCommonPrefix(strs []string) []rune {
+	commonPrefix := []rune(strs[0])
+	for _, match := range strs {
+		runes := []rune(match)
+
+		for i := range commonPrefix {
+			if len(runes) <= i || runes[i] != commonPrefix[i] {
+				commonPrefix = commonPrefix[:i]
+				break
+			}
+		}
+	}
+
+	return commonPrefix
+}
+
+func listFiles(path string) readline.DynamicCompleteFunc {
+	return func(line string) []string {
+		files := []string{}
+
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			return files
+		}
+
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				files = append(files, entry.Name())
+			}
+		}
+
+		return files
+	}
 }
