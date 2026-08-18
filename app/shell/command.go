@@ -87,6 +87,8 @@ func (c *Command) builtinCMD() {
 		c.pwdCMD()
 	case builtinCd:
 		c.cdCMD()
+	case builtinComplete:
+		c.completeCMD()
 	case builtinType:
 		c.typeCMD()
 	}
@@ -142,5 +144,12 @@ func (c *Command) cdCMD() {
 	err = os.Chdir(dir)
 	if err != nil {
 		fmt.Fprintln(c.stderr, err)
+	}
+}
+
+func (c *Command) completeCMD() {
+	if len(c.args) >= 2 && c.args[0] == "-p" {
+		name := c.args[1]
+		fmt.Fprintf(c.stderr, "%s: %s: no completion specification\n", builtinComplete, name)
 	}
 }
