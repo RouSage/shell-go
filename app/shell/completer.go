@@ -11,7 +11,7 @@ import (
 )
 
 type Completer struct {
-	readline.AutoCompleter
+	pci       readline.PrefixCompleterInterface
 	belledFor string
 	belled    bool
 }
@@ -42,18 +42,35 @@ func NewCompleter(completers ...readline.PrefixCompleterInterface) *Completer {
 		}
 	}
 
-	fileCompletions := readline.PcItemDynamic(listFiles("./"))
-	for _, completer := range completers {
-		completer.SetChildren([]readline.PrefixCompleterInterface{fileCompletions})
-	}
-
 	completer := readline.NewPrefixCompleter(completers...)
 
-	return &Completer{AutoCompleter: completer}
+	return &Completer{pci: completer}
 }
 
 func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
-	newLine, length := c.AutoCompleter.Do(line, pos)
+	full := string(line[:pos])
+
+	// if there's a space, we complete the argument
+	if spaceIdx := strings.LastIndex(full, " "); spaceIdx >= 0 {
+		arg := full[spaceIdx+1:]
+		dir := "./"
+		argPrefix := ""
+		filePrefix := arg
+
+		// if there's a slash, we need to match files in that directory
+		if slashIdx := strings.LastIndex(arg, "/"); slashIdx >= 0 {
+			dir = arg[:slashIdx+1]
+			argPrefix = dir
+			filePrefix = arg[slashIdx+1:]
+		}
+
+		fileCompletions := readline.PcItemDynamic(listFiles(dir, argPrefix, filePrefix))
+		for _, completer := range c.pci.GetChildren() {
+			completer.SetChildren([]readline.PrefixCompleterInterface{fileCompletions})
+		}
+	}
+
+	newLine, length := c.pci.Do(line, pos)
 
 	// Ring the bell on no matches
 	if len(newLine) == 0 {
@@ -67,17 +84,16 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 		return newLine, length
 	}
 
-	// On subsequent <TAB>s, do a partial completion with the longest common prefix
-	prefix := string(line[:pos])
+	// On subsequent <TAB>s, do a partial completion with the longest common full
 	names := make([]string, len(newLine))
 	for i, suffix := range newLine {
-		names[i] = prefix + string(suffix)
+		names[i] = full + string(suffix)
 	}
 
 	commonPrefix := longestCommonPrefix(names)
 
-	if len(commonPrefix) > len(prefix) {
-		diff := len(commonPrefix) - len(prefix)
+	if len(commonPrefix) > len(full) {
+		diff := len(commonPrefix) - len(full)
 		return [][]rune{commonPrefix[len(commonPrefix)-diff:]}, 1
 	}
 
@@ -94,7 +110,7 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 
 	// List matches in alphabetical order
 	slices.Sort(names)
-	fmt.Fprintf(os.Stdout, "\n%s\n$ %s", strings.Join(names, "  "), string(prefix))
+	fmt.Fprintf(os.Stdout, "\n%s\n$ %s", strings.Join(names, "  "), string(full))
 
 	return nil, 0
 }
@@ -124,7 +140,10 @@ func longestCommonPrefix(strs []string) []rune {
 	return commonPrefix
 }
 
-func listFiles(path string) readline.DynamicCompleteFunc {
+// listFiles matches files in path, and spells each match with argPrefix, the
+// directory exactly as the user typed it. Completions are matched against the
+// whole argument, so, e.g., "app/main.go" is what has to come back for "app/ma".
+func listFiles(path, argPrefix, prefix string) readline.DynamicCompleteFunc {
 	return func(line string) []string {
 		files := []string{}
 
@@ -134,8 +153,13 @@ func listFiles(path string) readline.DynamicCompleteFunc {
 		}
 
 		for _, entry := range entries {
-			if !entry.IsDir() {
-				files = append(files, entry.Name())
+			if entry.IsDir() {
+				continue
+			}
+
+			name := entry.Name()
+			if strings.HasPrefix(name, prefix) {
+				files = append(files, argPrefix+name)
 			}
 		}
 
