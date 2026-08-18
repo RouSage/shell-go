@@ -3,6 +3,7 @@ package shell
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -67,11 +68,25 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 
 	word := full
 	var matches []string
-	// If there's a space, complete the argument (directories or files)
+
+	// If there's a space, complete the argument
 	// Otherwise, complete the command
 	if spaceIdx := strings.LastIndexAny(full, " \t"); spaceIdx >= 0 {
-		word = full[spaceIdx+1:]
-		matches = matchFilesAndDirs(word)
+		// If there's a completer for the command, use it; otherwise, complete the argument
+		command := full[:spaceIdx]
+		if completer, ok := completionRegistry[command]; ok {
+			cmd := exec.Command(completer)
+			output, err := cmd.Output()
+			if err != nil {
+				return nil, 0
+			}
+			normalizedOutput := strings.TrimSpace(string(output))
+
+			return [][]rune{completion(normalizedOutput, 0)}, 0
+		} else {
+			word = full[spaceIdx+1:]
+			matches = matchFilesAndDirs(word)
+		}
 	} else {
 		matches = matchPrefix(c.commands, word)
 	}
