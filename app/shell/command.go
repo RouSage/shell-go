@@ -147,9 +147,24 @@ func (c *Command) cdCMD() {
 	}
 }
 
+var completionRegistry = make(map[string]string)
+
 func (c *Command) completeCMD() {
-	if len(c.args) >= 2 && c.args[0] == "-p" {
-		name := c.args[1]
-		fmt.Fprintf(c.stderr, "%s: %s: no completion specification\n", builtinComplete, name)
+	if len(c.args) < 2 {
+		return
+	}
+
+	if c.args[0] == "-C" && len(c.args) >= 3 {
+		scriptPath := c.args[1]
+		cmdName := c.args[2]
+		completionRegistry[cmdName] = scriptPath
+	} else if c.args[0] == "-p" {
+		cmdName := c.args[1]
+
+		if scriptPath, ok := completionRegistry[cmdName]; ok {
+			fmt.Fprintf(c.stdout, "%s -C '%s' %s\n", builtinComplete, scriptPath, cmdName)
+		} else {
+			fmt.Fprintf(c.stderr, "%s: %s: no completion specification\n", builtinComplete, cmdName)
+		}
 	}
 }
