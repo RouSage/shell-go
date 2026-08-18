@@ -49,14 +49,16 @@ func NewCompleter(completers ...readline.PrefixCompleterInterface) *Completer {
 
 func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	full := string(line[:pos])
+	prefix := full
 
 	// if there's a space, we complete the argument
 	if spaceIdx := strings.LastIndex(full, " "); spaceIdx >= 0 {
 		arg := full[spaceIdx+1:]
+		prefix = arg
+
 		dir := "./"
 		argPrefix := ""
 		filePrefix := arg
-
 		// if there's a slash, we need to match files in that directory
 		if slashIdx := strings.LastIndex(arg, "/"); slashIdx >= 0 {
 			dir = arg[:slashIdx+1]
@@ -94,13 +96,13 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	// On subsequent <TAB>s, do a partial completion with the longest common full
 	names := make([]string, len(newLine))
 	for i, suffix := range newLine {
-		names[i] = full + string(suffix)
+		names[i] = prefix + string(suffix)
 	}
 
 	commonPrefix := longestCommonPrefix(names)
 
-	if len(commonPrefix) > len(full) {
-		diff := len(commonPrefix) - len(full)
+	if len(commonPrefix) > len(prefix) {
+		diff := len(commonPrefix) - len(prefix)
 		return [][]rune{commonPrefix[len(commonPrefix)-diff:]}, 1
 	}
 
