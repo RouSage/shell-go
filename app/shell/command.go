@@ -14,14 +14,15 @@ import (
 type builtin = string
 
 const (
-	builtinEcho builtin = "echo"
-	builtinExit builtin = "exit"
-	builtinType builtin = "type"
-	builtinPwd  builtin = "pwd"
-	builtinCd   builtin = "cd"
+	builtinEcho     builtin = "echo"
+	builtinExit     builtin = "exit"
+	builtinType     builtin = "type"
+	builtinPwd      builtin = "pwd"
+	builtinCd       builtin = "cd"
+	builtinComplete builtin = "complete"
 )
 
-var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd, builtinCd}
+var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd, builtinCd, builtinComplete}
 var redirectOperators = []string{">", "1>", "2>"}
 
 type Command struct {
