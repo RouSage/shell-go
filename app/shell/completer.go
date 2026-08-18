@@ -80,6 +80,13 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 			if err != nil {
 				return nil, 0
 			}
+			// If the output is empty, do not change the input and ring the bell
+			if len(output) == 0 {
+				c.reset()
+				bell()
+				return nil, 0
+			}
+
 			normalizedOutput := strings.TrimSpace(string(output))
 
 			return [][]rune{completion(normalizedOutput, 0)}, 0
