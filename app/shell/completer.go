@@ -6,19 +6,34 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-
-	"github.com/chzyer/readline"
 )
 
 type Completer struct {
-	pci       readline.PrefixCompleterInterface
+	commands  []string
 	belledFor string
 	belled    bool
 }
 
-func NewCompleter(completers ...readline.PrefixCompleterInterface) *Completer {
-	paths := filepath.SplitList(os.Getenv("PATH"))
-	for _, path := range paths {
+// NewCompleter collects the names this shell can run: builtins, plus every
+// executable on PATH. Builtins come first so that a builtin shadows a PATH entry of
+// the same name to execute it instead of the PATH entry.
+func NewCompleter() *Completer {
+	seen := make(map[string]struct{})
+	commands := make([]string, 0, len(builtins))
+
+	add := func(name string) {
+		if _, ok := seen[name]; ok {
+			return
+		}
+		seen[name] = struct{}{}
+		commands = append(commands, name)
+	}
+
+	for _, builtin := range builtins {
+		add(builtin)
+	}
+
+	for _, path := range filepath.SplitList(os.Getenv("PATH")) {
 		entries, err := os.ReadDir(path)
 		if err != nil {
 			continue
@@ -30,80 +45,56 @@ func NewCompleter(completers ...readline.PrefixCompleterInterface) *Completer {
 			}
 
 			info, err := entry.Info()
-			if err != nil {
+			if err != nil || info.IsDir() || info.Mode().Perm()&0111 == 0 {
 				continue
 			}
-			if !info.IsDir() && info.Mode().Perm()&0111 != 0 {
-				// Skip builtins so that this shell handles them separately from the system
-				if !slices.Contains(builtins, info.Name()) {
-					completers = append(completers, readline.PcItem(info.Name()))
-				}
-			}
+
+			add(info.Name())
 		}
 	}
 
-	completer := readline.NewPrefixCompleter(completers...)
+	slices.Sort(commands)
 
-	return &Completer{pci: completer}
+	return &Completer{commands: commands}
 }
 
+// Do completes the word under the cursor: the first word on the line against the
+// known commands, every later word against the filesystem. Each word is completed on
+// its own, so "cat app/ f<TAB>" matches "f" in the current directory rather than
+// somewhere under app/.
 func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	full := string(line[:pos])
-	prefix := full
 
-	// if there's a space, we complete the argument
-	if spaceIdx := strings.LastIndex(full, " "); spaceIdx >= 0 {
-		arg := full[spaceIdx+1:]
-		prefix = arg
-
-		dir := "./"
-		argPrefix := ""
-		filePrefix := arg
-		// if there's a slash, we need to match files in that directory
-		if slashIdx := strings.LastIndex(arg, "/"); slashIdx >= 0 {
-			dir = arg[:slashIdx+1]
-			argPrefix = dir
-			filePrefix = arg[slashIdx+1:]
-		}
-
-		fileCompletions := readline.PcItemDynamic(listFilesAndDirs(dir, argPrefix, filePrefix))
-		for _, completer := range c.pci.GetChildren() {
-			completer.SetChildren([]readline.PrefixCompleterInterface{fileCompletions})
-		}
+	word := full
+	var matches []string
+	// If there's a space, complete the argument (directories or files)
+	// Otherwise, complete the command
+	if spaceIdx := strings.LastIndexAny(full, " \t"); spaceIdx >= 0 {
+		word = full[spaceIdx+1:]
+		matches = matchFilesAndDirs(word)
+	} else {
+		matches = matchPrefix(c.commands, word)
 	}
 
-	newLine, length := c.pci.Do(line, pos)
-	for i, line := range newLine {
-		// if the line ends with "/ ", strip the trailing space
-		// so that the it's possibl to continue with the nested dir completions
-		if s := string(line); strings.HasSuffix(s, "/ ") {
-			newLine[i] = []rune(s[:len(s)-1])
-		}
-	}
+	wordLen := len([]rune(word))
 
 	// Ring the bell on no matches
-	if len(newLine) == 0 {
+	if len(matches) == 0 {
 		c.reset()
 		bell()
 		return nil, 0
 	}
-	// One match, let readline handle it (autocomplete)
-	if len(newLine) == 1 {
+
+	// One match, complete it outright
+	if len(matches) == 1 {
 		c.reset()
-		return newLine, length
+		return [][]rune{completion(matches[0], wordLen)}, wordLen
 	}
 
-	// On subsequent <TAB>s, do a partial completion with the longest common full
-	names := make([]string, len(newLine))
-	for i, suffix := range newLine {
-		names[i] = prefix + string(suffix)
-	}
-
-	commonPrefix := longestCommonPrefix(names)
-
-	if len(commonPrefix) > len(prefix) {
-		diff := len(commonPrefix) - len(prefix)
-		return [][]rune{commonPrefix[len(commonPrefix)-diff:]}, 1
+	// On subsequent <TAB>s, do a partial completion with the longest common prefix
+	commonPrefix := longestCommonPrefix(matches)
+	if len(commonPrefix) > wordLen {
+		return [][]rune{commonPrefix[wordLen:]}, wordLen
 	}
 
 	// Multiple matches: bell on first <TAB>
@@ -118,8 +109,8 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	c.reset()
 
 	// List matches in alphabetical order
-	slices.Sort(names)
-	fmt.Fprintf(os.Stdout, "\n%s\n$ %s", strings.Join(names, "  "), string(full))
+	slices.Sort(matches)
+	fmt.Fprintf(os.Stdout, "\n%s\n$ %s", strings.Join(matches, "  "), full)
 
 	return nil, 0
 }
@@ -131,6 +122,29 @@ func (c *Completer) reset() {
 
 func bell() {
 	fmt.Fprintf(os.Stderr, "%c", 0x07)
+}
+
+// completion is the part of name still left to type. Directories are left open so
+// that the next <TAB> can descend into them; anything else closes the word with a
+// space.
+func completion(name string, wordLen int) []rune {
+	if !strings.HasSuffix(name, "/") {
+		name += " "
+	}
+
+	return []rune(name)[wordLen:]
+}
+
+func matchPrefix(candidates []string, prefix string) []string {
+	results := []string{}
+
+	for _, candidate := range candidates {
+		if strings.HasPrefix(candidate, prefix) {
+			results = append(results, candidate)
+		}
+	}
+
+	return results
 }
 
 func longestCommonPrefix(strs []string) []rune {
@@ -149,31 +163,38 @@ func longestCommonPrefix(strs []string) []rune {
 	return commonPrefix
 }
 
-// listFilesAndDirs matches files in path, and spells each match with argPrefix, the
-// directory exactly as the user typed it. Completions are matched against the
-// whole argument, so, e.g., "app/main.go" is what has to come back for "app/ma".
-func listFilesAndDirs(path, argPrefix, prefix string) readline.DynamicCompleteFunc {
-	return func(_ string) []string {
-		results := []string{}
+// matchFilesAndDirs matches files and directories against word, a partially typed
+// path, and spells each match with the directory exactly as the user typed it.
+// Matches are compared against the whole word, so, e.g., "app/main.go" is what has
+// to come back for "app/ma".
+func matchFilesAndDirs(word string) []string {
+	dir, dirPrefix, namePrefix := "./", "", word
+	// if there's a slash, we need to match files in that directory
+	if slashIdx := strings.LastIndex(word, "/"); slashIdx >= 0 {
+		dir = word[:slashIdx+1]
+		dirPrefix = dir
+		namePrefix = word[slashIdx+1:]
+	}
 
-		entries, err := os.ReadDir(path)
-		if err != nil {
-			return results
-		}
+	results := []string{}
 
-		for _, entry := range entries {
-			name := entry.Name()
-
-			if entry.IsDir() {
-				results = append(results, argPrefix+name+"/")
-				continue
-			}
-
-			if strings.HasPrefix(name, prefix) {
-				results = append(results, argPrefix+name)
-			}
-		}
-
+	entries, err := os.ReadDir(dir)
+	if err != nil {
 		return results
 	}
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if !strings.HasPrefix(name, namePrefix) {
+			continue
+		}
+
+		if entry.IsDir() {
+			name += "/"
+		}
+
+		results = append(results, dirPrefix+name)
+	}
+
+	return results
 }

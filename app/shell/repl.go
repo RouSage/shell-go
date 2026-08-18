@@ -9,10 +9,7 @@ import (
 )
 
 func REPL() {
-	completer := NewCompleter(
-		readline.PcItem(builtinEcho),
-		readline.PcItem(builtinExit),
-	)
+	completer := NewCompleter()
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:          "$ ",
 		AutoComplete:    completer,
