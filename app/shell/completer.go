@@ -64,13 +64,20 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 			filePrefix = arg[slashIdx+1:]
 		}
 
-		fileCompletions := readline.PcItemDynamic(listFiles(dir, argPrefix, filePrefix))
+		fileCompletions := readline.PcItemDynamic(listFilesAndDirs(dir, argPrefix, filePrefix))
 		for _, completer := range c.pci.GetChildren() {
 			completer.SetChildren([]readline.PrefixCompleterInterface{fileCompletions})
 		}
 	}
 
 	newLine, length := c.pci.Do(line, pos)
+	for i, line := range newLine {
+		// if the line ends with "/ ", strip the trailing space
+		// so that the it's possibl to continue with the nested dir completions
+		if s := string(line); strings.HasSuffix(s, "/ ") {
+			newLine[i] = []rune(s[:len(s)-1])
+		}
+	}
 
 	// Ring the bell on no matches
 	if len(newLine) == 0 {
@@ -140,29 +147,31 @@ func longestCommonPrefix(strs []string) []rune {
 	return commonPrefix
 }
 
-// listFiles matches files in path, and spells each match with argPrefix, the
+// listFilesAndDirs matches files in path, and spells each match with argPrefix, the
 // directory exactly as the user typed it. Completions are matched against the
 // whole argument, so, e.g., "app/main.go" is what has to come back for "app/ma".
-func listFiles(path, argPrefix, prefix string) readline.DynamicCompleteFunc {
-	return func(line string) []string {
-		files := []string{}
+func listFilesAndDirs(path, argPrefix, prefix string) readline.DynamicCompleteFunc {
+	return func(_ string) []string {
+		results := []string{}
 
 		entries, err := os.ReadDir(path)
 		if err != nil {
-			return files
+			return results
 		}
 
 		for _, entry := range entries {
+			name := entry.Name()
+
 			if entry.IsDir() {
+				results = append(results, argPrefix+name+"/")
 				continue
 			}
 
-			name := entry.Name()
 			if strings.HasPrefix(name, prefix) {
-				files = append(files, argPrefix+name)
+				results = append(results, argPrefix+name)
 			}
 		}
 
-		return files
+		return results
 	}
 }
