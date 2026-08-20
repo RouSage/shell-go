@@ -68,10 +68,11 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	word := full
 	var matches []string
 
-	// If there are multiple words, complete the last one (argument)
+	// If there's a space, complete the argument
 	// Otherwise, complete the command (first word)
-	if parts := strings.Fields(full); len(parts) > 1 {
+	if spaceIdx := strings.LastIndex(full, " "); spaceIdx > 1 {
 		// If there's a completer for the command, use it; otherwise, complete the argument
+		parts := strings.Fields(full)
 		command := parts[0]
 		if completer, ok := completionRegistry[command]; ok {
 			partialWord := ""

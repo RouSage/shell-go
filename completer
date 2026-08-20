@@ -4,6 +4,7 @@
 Invoked as: completer <command> <word-being-completed> <previous-word>
 Prints a single matching candidate to stdout.
 """
+
 import sys
 
 # argv[3] may be an empty string, but it must still be passed.
