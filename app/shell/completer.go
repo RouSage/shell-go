@@ -95,7 +95,7 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 			}
 			normalizedOutput := strings.TrimSpace(string(output))
 
-			return [][]rune{completion(normalizedOutput, 0)}, 0
+			return [][]rune{completion(normalizedOutput, len(partialWord))}, 0
 		} else {
 			word = parts[len(parts)-1]
 			matches = matchFilesAndDirs(word)
