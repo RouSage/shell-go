@@ -3,7 +3,6 @@ package shell
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -69,14 +68,22 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	word := full
 	var matches []string
 
-	// If there's a space, complete the argument
-	// Otherwise, complete the command
-	if spaceIdx := strings.LastIndexAny(full, " \t"); spaceIdx >= 0 {
+	// If there are multiple words, complete the last one (argument)
+	// Otherwise, complete the command (first word)
+	if parts := strings.Fields(full); len(parts) > 1 {
 		// If there's a completer for the command, use it; otherwise, complete the argument
-		command := full[:spaceIdx]
+		command := parts[0]
 		if completer, ok := completionRegistry[command]; ok {
-			cmd := exec.Command(completer)
-			output, err := cmd.Output()
+			partialWord := ""
+			if len(parts) > 1 {
+				partialWord = parts[len(parts)-1]
+			}
+			previousWord := ""
+			if len(parts) > 2 {
+				previousWord = parts[len(parts)-2]
+			}
+
+			output, err := execOutput(completer, command, partialWord, previousWord)
 			if err != nil {
 				return nil, 0
 			}
@@ -86,12 +93,11 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 				bell()
 				return nil, 0
 			}
-
 			normalizedOutput := strings.TrimSpace(string(output))
 
 			return [][]rune{completion(normalizedOutput, 0)}, 0
 		} else {
-			word = full[spaceIdx+1:]
+			word = parts[len(parts)-1]
 			matches = matchFilesAndDirs(word)
 		}
 	} else {

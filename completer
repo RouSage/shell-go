@@ -1,2 +1,25 @@
 #!/usr/bin/env python3
-print("run")
+"""Test completer for `complete -C ./completer git`.
+
+Invoked as: completer <command> <word-being-completed> <previous-word>
+Prints a single matching candidate to stdout.
+"""
+import sys
+
+# argv[3] may be an empty string, but it must still be passed.
+argv = sys.argv[1:]
+cmd = argv[0] if len(argv) > 0 else ""
+word = argv[1] if len(argv) > 1 else ""
+prev = argv[2] if len(argv) > 2 else ""
+
+CANDIDATES = {
+    # previous word -> candidates for the word being completed
+    "git": ["remote", "status", "checkout", "commit"],
+    "remote": ["add", "remove", "rename", "set-url", "show"],
+    "": ["remote"],
+}
+
+for candidate in CANDIDATES.get(prev, []):
+    if candidate.startswith(word):
+        print(candidate)
+        break

@@ -22,3 +22,8 @@ func handleRedirect(args []string, flag int, writer *io.Writer, file **os.File) 
 
 	return args[:len(args)-2]
 }
+
+func execOutput(command string, arg ...string) ([]byte, error) {
+	cmd := exec.Command(command, arg...)
+	return cmd.Output()
+}
