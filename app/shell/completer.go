@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -82,6 +83,15 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 			previousWord := ""
 			if len(parts) > 2 {
 				previousWord = parts[len(parts)-2]
+			}
+
+			err := os.Setenv("COMP_LINE", full)
+			if err != nil {
+				return nil, 0
+			}
+			err = os.Setenv("COMP_POS", strconv.Itoa(pos))
+			if err != nil {
+				return nil, 0
 			}
 
 			output, err := execOutput(completer, command, partialWord, previousWord)
