@@ -46,10 +46,6 @@ func NewCommand(command string) *Command {
 	}
 }
 
-func (c *Command) String() string {
-	return fmt.Sprintf("%s %s", c.command, strings.Join(c.args, " "))
-}
-
 func (c *Command) handle() {
 	if len(c.args) > 2 {
 		var fileToClose *os.File
@@ -122,7 +118,7 @@ func (c *Command) execCMD() error {
 		return err
 	}
 
-	job := addJob(c.String(), cmd)
+	job := addJob(fmt.Sprintf("%s %s", c.command, strings.Join(args, " ")), cmd)
 	go func(jobId int) {
 		cmd.Wait()
 		jobMap[jobId].done = true
@@ -145,11 +141,13 @@ func (c *Command) jobsCMD() {
 		}
 
 		status := "Running"
+		trailing := " &"
 		if job.done {
 			status = "Done"
+			trailing = ""
 		}
 
-		fmt.Fprintf(c.stdout, "[%d]%s  %-24s%s\n", id, marker, status, job.name)
+		fmt.Fprintf(c.stdout, "[%d]%s  %-24s%s%s\n", id, marker, status, job.name, trailing)
 
 		if job.done {
 			delete(jobMap, id)
