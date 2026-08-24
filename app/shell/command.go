@@ -94,12 +94,26 @@ func (c *Command) builtinCMD() {
 	}
 }
 
-func (c *Command) execCMD() {
+func (c *Command) execCMD() error {
+	argsLen := len(c.args)
+	if argsLen > 1 && c.args[argsLen-1] == "&" {
+		args := c.args[:argsLen-1]
+		cmd := exec.Command(c.command, args...)
+		err := cmd.Start()
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprintf(c.stdout, "[1] %d\n", cmd.Process.Pid)
+
+		return nil
+	}
+
 	cmd := exec.Command(c.command, c.args...)
 	cmd.Stderr = c.stderr
 	cmd.Stdout = c.stdout
 
-	cmd.Run()
+	return cmd.Run()
 }
 
 func (c *Command) typeCMD() {
