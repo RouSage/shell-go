@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"slices"
-	"sort"
 	"strings"
 )
 
@@ -131,37 +130,7 @@ func (c *Command) execCMD() error {
 }
 
 func (c *Command) jobsCMD() {
-	jobsLen := len(jobMap)
-
-	keys := make([]int, 0, jobsLen)
-	for _, job := range jobMap {
-		keys = append(keys, job.id)
-	}
-	sort.Ints(keys)
-
-	for idx, key := range keys {
-		job := jobMap[key]
-		marker := " "
-		switch idx + 1 {
-		case jobsLen:
-			marker = "+"
-		case jobsLen - 1:
-			marker = "-"
-		}
-
-		status := "Running"
-		trailing := " &"
-		if job.done {
-			status = "Done"
-			trailing = ""
-		}
-
-		fmt.Fprintf(c.stdout, "[%d]%s  %-24s%s%s\n", job.id, marker, status, job.name, trailing)
-
-		if job.done {
-			delete(jobMap, job.id)
-		}
-	}
+	listJobs(c.stdout, false)
 }
 
 func (c *Command) typeCMD() {

@@ -1,6 +1,11 @@
 package shell
 
-import "os/exec"
+import (
+	"fmt"
+	"io"
+	"os/exec"
+	"sort"
+)
 
 // Background jobs
 type Job struct {
@@ -22,4 +27,35 @@ func addJob(name string, cmd *exec.Cmd) *Job {
 	jobMap[job.id] = job
 
 	return job
+}
+
+func listJobs(w io.Writer, doneOnly bool) {
+	jobsLen := len(jobMap)
+
+	keys := make([]int, 0, jobsLen)
+	for _, job := range jobMap {
+		keys = append(keys, job.id)
+	}
+	sort.Ints(keys)
+
+	for idx, key := range keys {
+		job := jobMap[key]
+		marker := " "
+		switch idx + 1 {
+		case jobsLen:
+			marker = "+"
+		case jobsLen - 1:
+			marker = "-"
+		}
+
+		if doneOnly {
+			if job.done {
+				fmt.Fprintf(w, "[%d]%s  %-24s%s\n", job.id, marker, "Done", job.name)
+				delete(jobMap, job.id)
+			}
+		} else {
+			fmt.Fprintf(w, "[%d]%s  %-24s%s &\n", job.id, marker, "Running", job.name)
+		}
+
+	}
 }
