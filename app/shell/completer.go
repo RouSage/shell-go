@@ -181,7 +181,7 @@ func matchCompleter(full string, pos int) (matches []string, word string, ok boo
 		return matches, word, false
 	}
 
-	partialWord, previousWord := "", ""
+	partialWord, previousWord := "", command
 	if len(parts) > 1 {
 		partialWord = parts[len(parts)-1]
 	}
