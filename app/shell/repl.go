@@ -43,6 +43,5 @@ func REPL() {
 		}
 
 		cmd.handle()
-		listJobs(cmd.stdout, true)
 	}
 }

@@ -75,6 +75,10 @@ func (c *Command) handle() {
 		// Print the error message
 		fmt.Fprintf(c.stdout, "%s: command not found\n", c.command)
 	}
+
+	if c.command != builtinJobs {
+		listJobs(c.stdout, true)
+	}
 }
 
 func (c *Command) builtinCMD() {
