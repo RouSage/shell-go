@@ -73,43 +73,10 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	// Otherwise, complete the command (first word)
 	if spaceIdx := strings.LastIndex(full, " "); spaceIdx > 1 {
 		// If there's a completer for the command, use it; otherwise, complete the argument
-		parts := strings.Fields(full)
-		command := parts[0]
-		if completer, ok := completionRegistry[command]; ok {
-			partialWord := ""
-			if len(parts) > 1 {
-				partialWord = parts[len(parts)-1]
-			}
-			previousWord := ""
-			if len(parts) > 2 {
-				previousWord = parts[len(parts)-2]
-			}
-
-			err := os.Setenv("COMP_LINE", full)
-			if err != nil {
-				return nil, 0
-			}
-			err = os.Setenv("COMP_POINT", strconv.Itoa(pos))
-			if err != nil {
-				return nil, 0
-			}
-
-			output, err := execOutput(completer, command, partialWord, previousWord)
-			if err != nil {
-				return nil, 0
-			}
-			// If the output is empty, do not change the input and ring the bell
-			if len(output) == 0 {
-				c.reset()
-				bell()
-				return nil, 0
-			}
-			normalizedOutput := strings.TrimSpace(string(output))
-
-			if len(partialWord) > 1 {
-				return [][]rune{completion(normalizedOutput, len(partialWord))}, 0
-			}
-			return [][]rune{completion(normalizedOutput, 0)}, 0
+		completerMatches, completerWord, ok := matchCompleter(full, pos)
+		if ok {
+			word = completerWord
+			matches = completerMatches
 		} else {
 			word = full[spaceIdx+1:]
 			matches = matchFilesAndDirs(word)
@@ -203,6 +170,42 @@ func longestCommonPrefix(strs []string) []rune {
 	}
 
 	return commonPrefix
+}
+
+func matchCompleter(full string, pos int) (matches []string, word string, ok bool) {
+	parts := strings.Fields(full)
+	command := parts[0]
+
+	completer, ok := completionRegistry[command]
+	if !ok {
+		return matches, word, false
+	}
+
+	partialWord, previousWord := "", ""
+	if len(parts) > 1 {
+		partialWord = parts[len(parts)-1]
+	}
+	if len(parts) > 2 {
+		previousWord = parts[len(parts)-2]
+	}
+
+	err := os.Setenv("COMP_LINE", full)
+	if err != nil {
+		return matches, word, false
+	}
+	err = os.Setenv("COMP_POINT", strconv.Itoa(pos))
+	if err != nil {
+		return matches, word, false
+	}
+
+	output, err := execOutput(completer, command, partialWord, previousWord)
+	if err != nil {
+		return matches, word, false
+	}
+	matches = strings.Fields(strings.TrimSpace(string(output)))
+	word = partialWord
+
+	return matches, word, true
 }
 
 // matchFilesAndDirs matches files and directories against word, a partially typed

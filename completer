@@ -2,7 +2,11 @@
 """Test completer for `complete -C ./completer git`.
 
 Invoked as: completer <command> <word-being-completed> <previous-word>
-Prints a single matching candidate to stdout.
+Prints every matching candidate to stdout, one per line, e.g.:
+
+    add
+    commit
+    push
 """
 
 import sys
@@ -15,7 +19,7 @@ prev = argv[2] if len(argv) > 2 else ""
 
 CANDIDATES = {
     # previous word -> candidates for the word being completed
-    "git": ["remote", "status", "checkout", "commit"],
+    "git": ["add", "commit", "push"],
     "remote": ["add", "remove", "rename", "set-url", "show"],
     "": ["remote"],
 }
@@ -23,4 +27,3 @@ CANDIDATES = {
 for candidate in CANDIDATES.get(prev, []):
     if candidate.startswith(word):
         print(candidate)
-        break
