@@ -123,9 +123,12 @@ func (c *Command) execCMD() error {
 	}
 
 	job := addJob(c.String(), cmd)
+	go func(jobId int) {
+		cmd.Wait()
+		jobMap[jobId].done = true
+	}(job.id)
 
 	fmt.Fprintf(c.stdout, "[%d] %d\n", job.id, job.cmd.Process.Pid)
-	go cmd.Wait()
 
 	return nil
 }
@@ -141,7 +144,16 @@ func (c *Command) jobsCMD() {
 			marker = "-"
 		}
 
-		fmt.Fprintf(c.stdout, "[%d]%s  %-24s%s\n", id, marker, "Running", job.name)
+		status := "Running"
+		if job.done {
+			status = "Done"
+		}
+
+		fmt.Fprintf(c.stdout, "[%d]%s  %-24s%s\n", id, marker, status, job.name)
+
+		if job.done {
+			delete(jobMap, id)
+		}
 	}
 }
 
