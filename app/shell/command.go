@@ -166,5 +166,7 @@ func (c *Command) completeCMD() {
 		} else {
 			fmt.Fprintf(c.stderr, "%s: %s: no completion specification\n", builtinComplete, cmdName)
 		}
+	} else if c.args[0] == "-r" {
+		delete(completionRegistry, c.args[1])
 	}
 }
