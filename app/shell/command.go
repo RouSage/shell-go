@@ -122,13 +122,7 @@ func (c *Command) execCMD() error {
 		return err
 	}
 
-	job := &Job{
-		id:   1,
-		name: c.String(),
-		cmd:  cmd,
-		done: false,
-	}
-	jobMap[job.id] = job
+	job := addJob(c.String(), cmd)
 
 	fmt.Fprintf(c.stdout, "[%d] %d\n", job.id, job.cmd.Process.Pid)
 	go cmd.Wait()
@@ -137,8 +131,17 @@ func (c *Command) execCMD() error {
 }
 
 func (c *Command) jobsCMD() {
+	jobsLen := len(jobMap)
 	for id, job := range jobMap {
-		fmt.Fprintf(c.stdout, "[%d]+  %-24s%s\n", id, "Running", job.name)
+		marker := " "
+		switch id {
+		case jobsLen:
+			marker = "+"
+		case jobsLen - 1:
+			marker = "-"
+		}
+
+		fmt.Fprintf(c.stdout, "[%d]%s  %-24s%s\n", id, marker, "Running", job.name)
 	}
 }
 
