@@ -58,11 +58,13 @@ func listJobs(w io.Writer, doneOnly bool) {
 		if doneOnly {
 			if job.done {
 				fmt.Fprintf(w, "[%d]%s  %-24s%s%s\n", job.id, marker, status, job.name, trailing)
-				delete(jobMap, job.id)
 			}
 		} else {
 			fmt.Fprintf(w, "[%d]%s  %-24s%s%s\n", job.id, marker, status, job.name, trailing)
 		}
 
+		if job.done {
+			delete(jobMap, job.id)
+		}
 	}
 }
