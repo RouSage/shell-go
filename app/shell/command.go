@@ -99,6 +99,9 @@ func (c *Command) execCMD() error {
 	if argsLen > 1 && c.args[argsLen-1] == "&" {
 		args := c.args[:argsLen-1]
 		cmd := exec.Command(c.command, args...)
+		cmd.Stderr = c.stderr
+		cmd.Stdout = c.stdout
+
 		err := cmd.Start()
 		if err != nil {
 			return err
