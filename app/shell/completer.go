@@ -89,7 +89,7 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 			if err != nil {
 				return nil, 0
 			}
-			err = os.Setenv("COMP_POS", strconv.Itoa(pos))
+			err = os.Setenv("COMP_POINT", strconv.Itoa(pos))
 			if err != nil {
 				return nil, 0
 			}
