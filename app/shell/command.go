@@ -20,10 +20,10 @@ const (
 	builtinPwd      builtin = "pwd"
 	builtinCd       builtin = "cd"
 	builtinComplete builtin = "complete"
+	builtinJobs     builtin = "jobs"
 )
 
-var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd, builtinCd, builtinComplete}
-var redirectOperators = []string{">", "1>", "2>"}
+var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd, builtinCd, builtinComplete, builtinJobs}
 
 type Command struct {
 	command string
