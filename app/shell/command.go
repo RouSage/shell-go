@@ -46,6 +46,10 @@ func NewCommand(command string) *Command {
 	}
 }
 
+func (c *Command) String() string {
+	return fmt.Sprintf("%s %s", c.command, strings.Join(c.args, " "))
+}
+
 func (c *Command) handle() {
 	if len(c.args) > 2 {
 		var fileToClose *os.File
@@ -91,32 +95,51 @@ func (c *Command) builtinCMD() {
 		c.completeCMD()
 	case builtinType:
 		c.typeCMD()
+	case builtinJobs:
+		c.jobsCMD()
 	}
 }
 
 func (c *Command) execCMD() error {
 	argsLen := len(c.args)
-	if argsLen > 1 && c.args[argsLen-1] == "&" {
-		args := c.args[:argsLen-1]
-		cmd := exec.Command(c.command, args...)
-		cmd.Stderr = c.stderr
-		cmd.Stdout = c.stdout
+	isBackground := argsLen > 1 && c.args[argsLen-1] == "&"
 
-		err := cmd.Start()
-		if err != nil {
-			return err
-		}
-
-		fmt.Fprintf(c.stdout, "[1] %d\n", cmd.Process.Pid)
-
-		return nil
+	args := c.args
+	if isBackground {
+		args = c.args[:argsLen-1]
 	}
 
-	cmd := exec.Command(c.command, c.args...)
+	cmd := exec.Command(c.command, args...)
 	cmd.Stderr = c.stderr
 	cmd.Stdout = c.stdout
 
-	return cmd.Run()
+	if !isBackground {
+		return cmd.Run()
+	}
+
+	err := cmd.Start()
+	if err != nil {
+		return err
+	}
+
+	job := &Job{
+		id:   1,
+		name: c.String(),
+		cmd:  cmd,
+		done: false,
+	}
+	jobMap[job.id] = job
+
+	fmt.Fprintf(c.stdout, "[%d] %d\n", job.id, job.cmd.Process.Pid)
+	go cmd.Wait()
+
+	return nil
+}
+
+func (c *Command) jobsCMD() {
+	for id, job := range jobMap {
+		fmt.Fprintf(c.stdout, "[%d]+  %-24s%s\n", id, "Running", job.name)
+	}
 }
 
 func (c *Command) typeCMD() {
