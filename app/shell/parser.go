@@ -2,15 +2,19 @@ package shell
 
 import "strings"
 
-func parseArgs(command string) []string {
+func parseSegments(line string) [][]string {
 	var args []string
 	var current strings.Builder
-	hasToken := false
-	inSingleQuote := false
-	inDoubleQuote := false
-	isEscaped := false
+	var cmds = make([][]string, 0)
 
-	for _, r := range command {
+	var (
+		hasToken      = false
+		inSingleQuote = false
+		inDoubleQuote = false
+		isEscaped     = false
+	)
+
+	for _, r := range line {
 		switch {
 		case inSingleQuote:
 			if r == '\'' {
@@ -49,6 +53,17 @@ func parseArgs(command string) []string {
 		case r == '"':
 			inDoubleQuote = true
 			hasToken = true
+		case r == '|':
+			if hasToken {
+				args = append(args, current.String())
+				current.Reset()
+				hasToken = false
+			}
+
+			if len(args) > 0 {
+				cmds = append(cmds, args)
+			}
+			args = nil
 		case r == ' ' || r == '\t':
 			if hasToken {
 				args = append(args, current.String())
@@ -64,6 +79,9 @@ func parseArgs(command string) []string {
 	if hasToken {
 		args = append(args, current.String())
 	}
+	if len(args) > 0 {
+		cmds = append(cmds, args)
+	}
 
-	return args
+	return cmds
 }

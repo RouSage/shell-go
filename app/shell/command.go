@@ -28,12 +28,14 @@ var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd, buil
 type Command struct {
 	command string
 	args    []string
-	stdout  io.Writer
-	stderr  io.Writer
+	// flag for the background execution – (&) operator
+	background bool
+	stdin      io.Reader
+	stdout     io.Writer
+	stderr     io.Writer
 }
 
-func NewCommand(command string) *Command {
-	args := parseArgs(command)
+func newCommand(args []string) *Command {
 	if len(args) == 0 {
 		return nil
 	}
@@ -41,32 +43,62 @@ func NewCommand(command string) *Command {
 	return &Command{
 		command: args[0],
 		args:    args[1:],
+		stdin:   os.Stdin,
 		stdout:  os.Stdout,
 		stderr:  os.Stderr,
 	}
 }
 
-func (c *Command) handle() {
-	if len(c.args) > 2 {
-		var fileToClose *os.File
-
-		arg := c.args[len(c.args)-2]
-		switch arg {
-		case ">", "1>":
-			c.args = handleRedirect(c.args, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, &c.stdout, &fileToClose)
-		case "2>":
-			c.args = handleRedirect(c.args, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, &c.stderr, &fileToClose)
-		case ">>", "1>>":
-			c.args = handleRedirect(c.args, os.O_APPEND|os.O_CREATE|os.O_WRONLY, &c.stdout, &fileToClose)
-		case "2>>":
-			c.args = handleRedirect(c.args, os.O_APPEND|os.O_CREATE|os.O_WRONLY, &c.stderr, &fileToClose)
-		}
-
-		if fileToClose != nil {
-			defer fileToClose.Close()
-		}
+func (c *Command) String() string {
+	if len(c.args) == 0 {
+		return c.command
 	}
 
+	return fmt.Sprintf("%s %s", c.command, strings.Join(c.args, " "))
+}
+
+// handle runs the command on its own: redirects are applied, the command runs,
+// and any file opened for a redirect is closed again.
+func (c *Command) handle() {
+	closeRedirects := c.applyRedirects()
+	defer closeRedirects()
+
+	c.run()
+}
+
+// applyRedirects consumes a trailing redirect operator, if any, and points
+// stdout/stderr at the target file. The returned func closes that file, so it
+// must be called once the command is done writing.
+func (c *Command) applyRedirects() func() {
+	if len(c.args) < 2 {
+		return func() {}
+	}
+
+	var fileToClose *os.File
+
+	switch c.args[len(c.args)-2] {
+	case ">", "1>":
+		c.args = handleRedirect(c.args, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, &c.stdout, &fileToClose)
+	case "2>":
+		c.args = handleRedirect(c.args, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, &c.stderr, &fileToClose)
+	case ">>", "1>>":
+		c.args = handleRedirect(c.args, os.O_APPEND|os.O_CREATE|os.O_WRONLY, &c.stdout, &fileToClose)
+	case "2>>":
+		c.args = handleRedirect(c.args, os.O_APPEND|os.O_CREATE|os.O_WRONLY, &c.stderr, &fileToClose)
+	}
+
+	if fileToClose == nil {
+		return func() {}
+	}
+
+	return func() {
+		fileToClose.Close()
+	}
+}
+
+// run dispatches to a builtin or an external binary.
+// Redirects must already be applied.
+func (c *Command) run() {
 	if slices.Contains(builtins, c.command) {
 		c.builtinCMD()
 	} else if _, err := lookPath(c.command); err == nil {
@@ -74,10 +106,6 @@ func (c *Command) handle() {
 	} else {
 		// Print the error message
 		fmt.Fprintf(c.stdout, "%s: command not found\n", c.command)
-	}
-
-	if c.command != builtinJobs {
-		listJobs(c.stdout, true)
 	}
 }
 
@@ -100,20 +128,21 @@ func (c *Command) builtinCMD() {
 	}
 }
 
-func (c *Command) execCMD() error {
-	argsLen := len(c.args)
-	isBackground := argsLen > 1 && c.args[argsLen-1] == "&"
-
-	args := c.args
-	if isBackground {
-		args = c.args[:argsLen-1]
-	}
-
-	cmd := exec.Command(c.command, args...)
-	cmd.Stderr = c.stderr
+// newExecCmd builds the *exec.Cmd for an external command, wired to whatever
+// stdin/stdout/stderr the command currently holds (a file, a pipe, or the shell's own streams).
+func (c *Command) newExecCmd() *exec.Cmd {
+	cmd := exec.Command(c.command, c.args...)
+	cmd.Stdin = c.stdin
 	cmd.Stdout = c.stdout
+	cmd.Stderr = c.stderr
 
-	if !isBackground {
+	return cmd
+}
+
+func (c *Command) execCMD() error {
+	cmd := c.newExecCmd()
+
+	if !c.background {
 		return cmd.Run()
 	}
 
@@ -122,7 +151,7 @@ func (c *Command) execCMD() error {
 		return err
 	}
 
-	job := addJob(fmt.Sprintf("%s %s", c.command, strings.Join(args, " ")), cmd)
+	job := addJob(c.String(), cmd)
 	go func(jobId int) {
 		cmd.Wait()
 		jobMap[jobId].done = true

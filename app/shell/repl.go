@@ -37,11 +37,11 @@ func REPL() {
 			continue
 		}
 
-		cmd := NewCommand(command)
-		if cmd == nil {
+		pipeline := NewPipeline(command)
+		if pipeline == nil {
 			continue
 		}
 
-		cmd.handle()
+		pipeline.Run()
 	}
 }
