@@ -105,7 +105,7 @@ func (c *Command) run() {
 		c.execCMD()
 	} else {
 		// Print the error message
-		fmt.Fprintf(c.stdout, "%s: command not found\n", c.command)
+		fmt.Fprintf(c.stderr, "%s: command not found\n", c.command)
 	}
 }
 
@@ -156,8 +156,7 @@ func (c *Command) execCMD() error {
 		cmd.Wait()
 		jobMap[jobId].done = true
 	}(job.id)
-
-	fmt.Fprintf(c.stdout, "[%d] %d\n", job.id, job.cmd.Process.Pid)
+	fmt.Fprintln(c.stdout, job.String())
 
 	return nil
 }
@@ -174,7 +173,7 @@ func (c *Command) typeCMD() {
 	} else if path, err := lookPath(command); err == nil {
 		fmt.Fprintf(c.stdout, "%s is %s\n", command, path)
 	} else {
-		fmt.Fprintf(c.stdout, "%s: not found\n", command)
+		fmt.Fprintf(c.stderr, "%s: not found\n", command)
 	}
 }
 
@@ -201,7 +200,7 @@ func (c *Command) cdCMD() {
 
 	_, err := os.Stat(dir)
 	if errors.Is(err, fs.ErrNotExist) {
-		fmt.Printf("%s: %s: No such file or directory\n", builtinCd, dir)
+		fmt.Fprintf(c.stderr, "%s: %s: No such file or directory\n", builtinCd, dir)
 		return
 	}
 

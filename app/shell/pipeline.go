@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"strings"
 )
 
 // Pipeline is one input line: a sequence of commands joined by `|`. A line
@@ -67,8 +69,96 @@ func (p *Pipeline) Run() {
 	}
 }
 
+func (p *Pipeline) String() string {
+
+	segments := make([]string, 0, len(p.cmds))
+	for _, cmd := range p.cmds {
+		segments = append(segments, cmd.String())
+	}
+
+	return strings.Join(segments, " | ")
+}
+
 // runStages wires the commands together with pipes and runs them concurrently.
-// TODO: steps 3-4 of PIPE.md — os.Pipe() wiring, start-all/close-all/wait-all.
 func (p *Pipeline) runStages() {
-	fmt.Fprintln(p.stderr, "pipelines are not implemented yet")
+	// every pipe has a read and write end, store them in a slice
+	// so that they can be closed after the pipeline is done
+	pipeEnds := make([]*os.File, 0, 2*(len(p.cmds)-1))
+
+	// set stdin/stdout for each command
+	// first command reads from stdin, last command writes to stdout
+	for i := range len(p.cmds) - 1 {
+		pr, pw, err := os.Pipe()
+		if err != nil {
+			fmt.Fprintf(p.stderr, "pipeline failed: %s\n", err)
+			closeAll(pipeEnds)
+			return
+		}
+
+		p.cmds[i].stdout = pw
+		p.cmds[i+1].stdin = pr
+		pipeEnds = append(pipeEnds, pr, pw)
+	}
+
+	// apply redirects for each command
+	// redirects are applied before the command is started, because it overwrites stdout
+	redirectClosers := make([]func(), 0, len(p.cmds))
+	for _, cmd := range p.cmds {
+		redirectClosers = append(redirectClosers, cmd.applyRedirects())
+	}
+
+	// start each command concurrently
+	// starting them sequentially can lead to deadlocks, when output reaches the pipe buffer,
+	// so Start() instead of Run()
+	execCmds := make([]*exec.Cmd, len(p.cmds))
+	for i, cmd := range p.cmds {
+		execCmd := cmd.newExecCmd()
+		err := execCmd.Start()
+		if err != nil {
+			fmt.Fprintf(p.stderr, "cannot start \"%s\" command: %s\n", cmd.String(), err)
+			execCmds[i] = nil
+			continue
+		}
+
+		execCmds[i] = execCmd
+	}
+
+	// close all pipe ends, children will have a copy of them, so we can close them here
+	closeAll(pipeEnds)
+
+	// wait for all commands to complete
+	wait := func() {
+		for _, execCmd := range execCmds {
+			if execCmd == nil {
+				continue
+			}
+
+			execCmd.Wait()
+		}
+
+		// close all redirects after the pipeline is done
+		for _, closer := range redirectClosers {
+			closer()
+		}
+	}
+
+	if !p.background {
+		wait()
+		return
+	}
+
+	// background execution registers one job for the whole pipeline
+	// and reports a pid of the last command if it's not nil
+	last := execCmds[len(execCmds)-1]
+	if last == nil {
+		go wait()
+		return
+	}
+
+	job := addJob(p.String(), last)
+	go func(jobId int) {
+		wait()
+		jobMap[jobId].done = true
+	}(job.id)
+	fmt.Fprintln(p.stdout, job.String())
 }

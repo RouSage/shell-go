@@ -17,6 +17,10 @@ type Job struct {
 
 var jobMap = make(map[int]*Job)
 
+func (job *Job) String() string {
+	return fmt.Sprintf("[%d] %d", job.id, job.cmd.Process.Pid)
+}
+
 func addJob(name string, cmd *exec.Cmd) *Job {
 	job := &Job{
 		id:   len(jobMap) + 1,
