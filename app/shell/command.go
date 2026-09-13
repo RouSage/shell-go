@@ -96,10 +96,14 @@ func (c *Command) applyRedirects() func() {
 	}
 }
 
+func (c *Command) isBuiltin() bool {
+	return slices.Contains(builtins, c.command)
+}
+
 // run dispatches to a builtin or an external binary.
 // Redirects must already be applied.
 func (c *Command) run() {
-	if slices.Contains(builtins, c.command) {
+	if c.isBuiltin() {
 		c.builtinCMD()
 	} else if _, err := lookPath(c.command); err == nil {
 		c.execCMD()
@@ -107,6 +111,15 @@ func (c *Command) run() {
 		// Print the error message
 		fmt.Fprintf(c.stderr, "%s: command not found\n", c.command)
 	}
+}
+
+func (c *Command) runBuiltinStage() {
+	switch c.command {
+	case builtinExit, builtinCd:
+		return
+	}
+
+	c.builtinCMD()
 }
 
 func (c *Command) builtinCMD() {
@@ -168,7 +181,7 @@ func (c *Command) jobsCMD() {
 func (c *Command) typeCMD() {
 	command := c.args[0]
 
-	if slices.Contains(builtins, command) {
+	if c.isBuiltin() {
 		fmt.Fprintf(c.stdout, "%s is a shell builtin\n", command)
 	} else if path, err := lookPath(command); err == nil {
 		fmt.Fprintf(c.stdout, "%s is %s\n", command, path)
