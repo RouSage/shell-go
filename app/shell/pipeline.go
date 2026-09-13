@@ -35,7 +35,7 @@ func NewPipeline(input string) *Pipeline {
 	// A trailing `&` backgrounds the whole line, so strip it before the last
 	// segment is turned into a Command.
 	last := segments[len(segments)-1]
-	if len(last) > 0 && last[len(last)-1] == "&" {
+	if len(last) > 0 && last[len(last)-1].op && last[len(last)-1].value == "&" {
 		p.background = true
 		segments[len(segments)-1] = last[:len(last)-1]
 	}

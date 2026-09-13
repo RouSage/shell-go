@@ -1,18 +1,46 @@
 package shell
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
-func parseSegments(line string) [][]string {
-	var args []string
+type Token struct {
+	value  string
+	quoted bool
+	op     bool
+}
+
+func newToken(value string, quoted bool) Token {
+	return Token{
+		value:  value,
+		quoted: quoted,
+		op:     !quoted && (value == "&" || slices.Contains(redirectOps, value)),
+	}
+}
+
+func parseSegments(line string) [][]Token {
+	var args []Token
 	var current strings.Builder
-	var cmds = make([][]string, 0)
+	var cmds = make([][]Token, 0)
 
 	var (
 		hasToken      = false
+		literal       = false
 		inSingleQuote = false
 		inDoubleQuote = false
 		isEscaped     = false
 	)
+
+	flush := func() {
+		if !hasToken {
+			return
+		}
+
+		args = append(args, newToken(current.String(), literal))
+		current.Reset()
+		hasToken, literal = false, false
+	}
 
 	for _, r := range line {
 		switch {
@@ -31,6 +59,7 @@ func parseSegments(line string) [][]string {
 					current.WriteRune(r)
 				}
 				isEscaped = false
+				hasToken, literal = true, true
 			} else if r == '\\' {
 				isEscaped = true
 			} else if r == '"' {
@@ -41,6 +70,7 @@ func parseSegments(line string) [][]string {
 		case isEscaped:
 			current.WriteRune(r)
 			isEscaped = false
+			hasToken, literal = true, true
 		case r == '\\':
 			isEscaped = true
 		case r == '\'':
@@ -48,37 +78,28 @@ func parseSegments(line string) [][]string {
 				current.WriteRune(r)
 			} else {
 				inSingleQuote = true
-				hasToken = true
+				hasToken, literal = true, true
 			}
 		case r == '"':
 			inDoubleQuote = true
-			hasToken = true
+			hasToken, literal = true, true
 		case r == '|':
-			if hasToken {
-				args = append(args, current.String())
-				current.Reset()
-				hasToken = false
-			}
+			flush()
 
 			if len(args) > 0 {
 				cmds = append(cmds, args)
 			}
 			args = nil
 		case r == ' ' || r == '\t':
-			if hasToken {
-				args = append(args, current.String())
-				current.Reset()
-				hasToken = false
-			}
+			flush()
 		default:
 			current.WriteRune(r)
 			hasToken = true
 		}
 	}
 
-	if hasToken {
-		args = append(args, current.String())
-	}
+	flush()
+
 	if len(args) > 0 {
 		cmds = append(cmds, args)
 	}

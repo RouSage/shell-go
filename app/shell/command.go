@@ -24,10 +24,18 @@ const (
 )
 
 var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd, builtinCd, builtinComplete, builtinJobs}
+var redirectOps = []string{">", "1>", "2>", ">>", "1>>", "2>>"}
+
+// redirect is one `op target` pair taken off the command line, e.g. `2>> log`.
+type redirect struct {
+	op     string
+	target string
+}
 
 type Command struct {
-	command string
-	args    []string
+	command   string
+	args      []string
+	redirects []redirect
 	// flag for the background execution – (&) operator
 	background bool
 	stdin      io.Reader
@@ -35,17 +43,39 @@ type Command struct {
 	stderr     io.Writer
 }
 
-func newCommand(args []string) *Command {
+func newCommand(tokens []Token) *Command {
+	if len(tokens) == 0 {
+		return nil
+	}
+
+	args := make([]string, 0, len(tokens))
+	var redirects []redirect
+
+	for i := 0; i < len(tokens); i++ {
+		token := tokens[i]
+		// An unquoted redirect operator claims the next token as its target and
+		// both leave the argument list, so `echo a > out.txt` runs as `echo a`.
+		// A quoted `>` never gets op set, so `echo ">" file` stays two args.
+		if token.op && slices.Contains(redirectOps, token.value) && i+1 < len(tokens) {
+			redirects = append(redirects, redirect{op: token.value, target: tokens[i+1].value})
+			i++
+			continue
+		}
+
+		args = append(args, token.value)
+	}
+
 	if len(args) == 0 {
 		return nil
 	}
 
 	return &Command{
-		command: args[0],
-		args:    args[1:],
-		stdin:   os.Stdin,
-		stdout:  os.Stdout,
-		stderr:  os.Stderr,
+		command:   args[0],
+		args:      args[1:],
+		redirects: redirects,
+		stdin:     os.Stdin,
+		stdout:    os.Stdout,
+		stderr:    os.Stderr,
 	}
 }
 
@@ -66,33 +96,48 @@ func (c *Command) handle() {
 	c.run()
 }
 
-// applyRedirects consumes a trailing redirect operator, if any, and points
-// stdout/stderr at the target file. The returned func closes that file, so it
-// must be called once the command is done writing.
+// applyRedirects opens every redirect parsed off the command line and points
+// stdout/stderr at the target files. Later redirects to the same stream win, as
+// in bash. The returned func closes those files, so it must be called once the
+// command is done writing.
 func (c *Command) applyRedirects() func() {
-	if len(c.args) < 2 {
-		return func() {}
+	var opened []*os.File
+
+	for _, r := range c.redirects {
+		var (
+			flag   int
+			writer *io.Writer
+		)
+
+		switch r.op {
+		case ">", "1>":
+			flag, writer = os.O_WRONLY|os.O_CREATE|os.O_TRUNC, &c.stdout
+		case "2>":
+			flag, writer = os.O_WRONLY|os.O_CREATE|os.O_TRUNC, &c.stderr
+		case ">>", "1>>":
+			flag, writer = os.O_APPEND|os.O_CREATE|os.O_WRONLY, &c.stdout
+		case "2>>":
+			flag, writer = os.O_APPEND|os.O_CREATE|os.O_WRONLY, &c.stderr
+		default:
+			continue
+		}
+
+		file, err := os.OpenFile(r.target, flag, 0644)
+		if err != nil {
+			fmt.Fprintln(c.stderr, err)
+			continue
+		}
+
+		*writer = file
+		opened = append(opened, file)
 	}
 
-	var fileToClose *os.File
-
-	switch c.args[len(c.args)-2] {
-	case ">", "1>":
-		c.args = handleRedirect(c.args, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, &c.stdout, &fileToClose)
-	case "2>":
-		c.args = handleRedirect(c.args, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, &c.stderr, &fileToClose)
-	case ">>", "1>>":
-		c.args = handleRedirect(c.args, os.O_APPEND|os.O_CREATE|os.O_WRONLY, &c.stdout, &fileToClose)
-	case "2>>":
-		c.args = handleRedirect(c.args, os.O_APPEND|os.O_CREATE|os.O_WRONLY, &c.stderr, &fileToClose)
-	}
-
-	if fileToClose == nil {
+	if len(opened) == 0 {
 		return func() {}
 	}
 
 	return func() {
-		fileToClose.Close()
+		closeAll(opened)
 	}
 }
 
