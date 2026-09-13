@@ -226,7 +226,7 @@ func (c *Command) jobsCMD() {
 func (c *Command) typeCMD() {
 	command := c.args[0]
 
-	if c.isBuiltin() {
+	if slices.Contains(builtins, command) {
 		fmt.Fprintf(c.stdout, "%s is a shell builtin\n", command)
 	} else if path, err := lookPath(command); err == nil {
 		fmt.Fprintf(c.stdout, "%s is %s\n", command, path)
