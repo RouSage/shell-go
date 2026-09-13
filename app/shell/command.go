@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -298,7 +299,14 @@ func (c *Command) completeCMD() {
 }
 
 func (c *Command) historyCMD() {
-	for i, cmd := range history {
-		fmt.Fprintf(c.stdout, "%4d  %s\n", i+1, cmd)
+	start := 0
+	if len(c.args) > 0 {
+		if n, err := strconv.Atoi(c.args[0]); err == nil && n < len(history) {
+			start = len(history) - n
+		}
+	}
+
+	for i := start; i < len(history); i++ {
+		fmt.Fprintf(c.stdout, "%4d  %s\n", i+1, history[i])
 	}
 }
