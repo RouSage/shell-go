@@ -26,6 +26,8 @@ const (
 
 var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd, builtinCd, builtinComplete, builtinJobs, builtinHistory}
 var redirectOps = []string{">", "1>", "2>", ">>", "1>>", "2>>"}
+var completionRegistry = make(map[string]string)
+var history = make([]string, 0)
 
 // redirect is one `op target` pair taken off the command line, e.g. `2>> log`.
 type redirect struct {
@@ -93,6 +95,8 @@ func (c *Command) String() string {
 func (c *Command) handle() {
 	closeRedirects := c.applyRedirects()
 	defer closeRedirects()
+
+	history = append(history, c.String())
 
 	c.run()
 }
@@ -184,6 +188,8 @@ func (c *Command) builtinCMD() {
 		c.typeCMD()
 	case builtinJobs:
 		c.jobsCMD()
+	case builtinHistory:
+		c.historyCMD()
 	}
 }
 
@@ -269,8 +275,6 @@ func (c *Command) cdCMD() {
 	}
 }
 
-var completionRegistry = make(map[string]string)
-
 func (c *Command) completeCMD() {
 	if len(c.args) < 2 {
 		return
@@ -290,5 +294,11 @@ func (c *Command) completeCMD() {
 		}
 	} else if c.args[0] == "-r" {
 		delete(completionRegistry, c.args[1])
+	}
+}
+
+func (c *Command) historyCMD() {
+	for i, cmd := range history {
+		fmt.Fprintf(c.stdout, "%4d  %s\n", i+1, cmd)
 	}
 }
