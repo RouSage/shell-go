@@ -10,6 +10,8 @@ import (
 )
 
 type Completer struct {
+	sh *Shell
+
 	commands  []string
 	belledFor string
 	belled    bool
@@ -18,7 +20,7 @@ type Completer struct {
 // NewCompleter collects the names this shell can run: builtins, plus every
 // executable on PATH. Builtins come first so that a builtin shadows a PATH entry of
 // the same name to execute it instead of the PATH entry.
-func NewCompleter() *Completer {
+func NewCompleter(shell *Shell) *Completer {
 	seen := make(map[string]struct{})
 	commands := make([]string, 0, len(builtins))
 
@@ -56,7 +58,7 @@ func NewCompleter() *Completer {
 
 	slices.Sort(commands)
 
-	return &Completer{commands: commands}
+	return &Completer{sh: shell, commands: commands}
 }
 
 // Do completes the word under the cursor: the first word on the line against the
@@ -73,7 +75,7 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	// Otherwise, complete the command (first word)
 	if spaceIdx := strings.LastIndex(full, " "); spaceIdx > 1 {
 		// If there's a completer for the command, use it; otherwise, complete the argument
-		completerMatches, completerWord, ok := matchCompleter(full, pos)
+		completerMatches, completerWord, ok := c.matchCompleter(full, pos)
 		if ok {
 			word = completerWord
 			matches = completerMatches
@@ -172,11 +174,11 @@ func longestCommonPrefix(strs []string) []rune {
 	return commonPrefix
 }
 
-func matchCompleter(full string, pos int) (matches []string, word string, ok bool) {
+func (c *Completer) matchCompleter(full string, pos int) (matches []string, word string, ok bool) {
 	parts := strings.Fields(full)
 	command := parts[0]
 
-	completer, ok := completionRegistry[command]
+	completer, ok := c.sh.completions[command]
 	if !ok {
 		return matches, word, false
 	}

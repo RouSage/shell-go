@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
+	"sync"
 )
 
 type History struct {
 	entries      []string
 	lastAppended int
+	mu           sync.Mutex
 }
 
 func NewHistory() *History {
@@ -31,16 +34,30 @@ func NewHistory() *History {
 }
 
 func (h *History) Add(entry string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	h.entries = append(h.entries, entry)
 }
 
 func (h *History) Len() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	return len(h.entries)
 }
 
+// Print writes entries from start onwards, numbered from 1 as bash does. The
+// snapshot is taken under the lock and formatted without it, because w is a
+// pipe for `history | head` and blocking on a full pipe buffer while holding
+// mu would stall every other stage of the line.
 func (h *History) Print(w io.Writer, start int) {
-	for i := start; i < len(h.entries); i++ {
-		fmt.Fprintf(w, "%4d  %s\n", i+1, h.entries[i])
+	h.mu.Lock()
+	entries := slices.Clone(h.entries[min(start, len(h.entries)):])
+	h.mu.Unlock()
+
+	for i, entry := range entries {
+		fmt.Fprintf(w, "%4d  %s\n", start+i+1, entry)
 	}
 }
 
@@ -50,29 +67,30 @@ func (h *History) Read(path string) error {
 		return err
 	}
 
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	h.entries = append(h.entries, entries...)
 
 	return nil
 }
 
 func (h *History) Write(path string) error {
-	return h.write(path)
-}
-
-func (h *History) Append(path string) error {
-	return h.appendHistory(path)
-}
-
-func (h *History) write(path string) error {
+	h.mu.Lock()
 	data := entriesToString(h.entries)
-	if err := os.WriteFile(path, []byte(data), 0644); err != nil {
-		return err
-	}
+	h.mu.Unlock()
 
-	return nil
+	return os.WriteFile(path, []byte(data), 0644)
 }
 
-func (h *History) appendHistory(path string) error {
+// Append writes the entries added since the last Append. Unlike Write, the lock
+// is held across the file write: taking entries[lastAppended:], writing it and
+// advancing lastAppended is one read-modify-write, and splitting it would let
+// two concurrent `history -a` stages duplicate or drop lines.
+func (h *History) Append(path string) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	data := entriesToString(h.entries[h.lastAppended:])
 
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -89,6 +107,7 @@ func (h *History) appendHistory(path string) error {
 
 	return nil
 }
+
 func read(path string) ([]string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -109,5 +128,9 @@ func read(path string) ([]string, error) {
 }
 
 func entriesToString(entries []string) string {
+	if len(entries) == 0 {
+		return ""
+	}
+
 	return strings.Join(entries, "\n") + "\n"
 }

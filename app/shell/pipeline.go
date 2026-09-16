@@ -13,6 +13,8 @@ import (
 // without any `|` is simply a pipeline of length one, so there is a single code
 // path for both cases.
 type Pipeline struct {
+	sh *Shell
+
 	cmds       []*Command
 	background bool
 	stdout     io.Writer
@@ -27,6 +29,7 @@ func NewPipeline(shell *Shell, input string) *Pipeline {
 	}
 
 	p := &Pipeline{
+		sh:     shell,
 		cmds:   make([]*Command, 0, len(segments)),
 		stdout: os.Stdout,
 		stderr: os.Stderr,
@@ -41,7 +44,7 @@ func NewPipeline(shell *Shell, input string) *Pipeline {
 	}
 
 	for _, args := range segments {
-		cmd := newCommand(shell, args)
+		cmd := newCommand(p.sh, args)
 		if cmd == nil {
 			return nil
 		}
@@ -67,7 +70,7 @@ func (p *Pipeline) Run() {
 
 	// Report background jobs that finished while the line was running
 	if len(p.cmds) != 1 || p.cmds[0].command != builtinJobs {
-		listJobs(p.stdout, true)
+		p.sh.jobs.List(p.stdout, true)
 	}
 }
 
@@ -129,10 +132,10 @@ func (p *Pipeline) runStages() {
 		return
 	}
 
-	job := addJob(p.String(), last)
+	job := p.sh.jobs.AddJob(p.String(), last)
 	go func(jobId int) {
 		wait()
-		jobMap[jobId].done = true
+		p.sh.jobs.MarkJobDone(jobId)
 	}(job.id)
 	fmt.Fprintln(p.stdout, job.String())
 }

@@ -9,17 +9,21 @@ import (
 )
 
 type Shell struct {
-	history *History
+	history     *History
+	jobs        *Jobs
+	completions map[string]string
 }
 
 func New() *Shell {
 	return &Shell{
-		history: NewHistory(),
+		history:     NewHistory(),
+		jobs:        NewJobs(),
+		completions: map[string]string{},
 	}
 }
 
 func (s *Shell) REPL() {
-	completer := NewCompleter()
+	completer := NewCompleter(s)
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:          "$ ",
 		AutoComplete:    completer,

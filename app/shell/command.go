@@ -27,7 +27,6 @@ const (
 
 var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd, builtinCd, builtinComplete, builtinJobs, builtinHistory}
 var redirectOps = []string{">", "1>", "2>", ">>", "1>>", "2>>"}
-var completionRegistry = make(map[string]string)
 
 // redirect is one `op target` pair taken off the command line, e.g. `2>> log`.
 type redirect struct {
@@ -219,10 +218,10 @@ func (c *Command) execCMD() error {
 		return err
 	}
 
-	job := addJob(c.String(), cmd)
+	job := c.sh.jobs.AddJob(c.String(), cmd)
 	go func(jobId int) {
 		cmd.Wait()
-		jobMap[jobId].done = true
+		c.sh.jobs.MarkJobDone(jobId)
 	}(job.id)
 	fmt.Fprintln(c.stdout, job.String())
 
@@ -230,7 +229,7 @@ func (c *Command) execCMD() error {
 }
 
 func (c *Command) jobsCMD() {
-	listJobs(c.stdout, false)
+	c.sh.jobs.List(c.stdout, false)
 }
 
 func (c *Command) typeCMD() {
@@ -286,17 +285,17 @@ func (c *Command) completeCMD() {
 	if c.args[0] == "-C" && len(c.args) >= 3 {
 		scriptPath := c.args[1]
 		cmdName := c.args[2]
-		completionRegistry[cmdName] = scriptPath
+		c.sh.completions[cmdName] = scriptPath
 	} else if c.args[0] == "-p" {
 		cmdName := c.args[1]
 
-		if scriptPath, ok := completionRegistry[cmdName]; ok {
+		if scriptPath, ok := c.sh.completions[cmdName]; ok {
 			fmt.Fprintf(c.stdout, "%s -C '%s' %s\n", builtinComplete, scriptPath, cmdName)
 		} else {
 			fmt.Fprintf(c.stderr, "%s: %s: no completion specification\n", builtinComplete, cmdName)
 		}
 	} else if c.args[0] == "-r" {
-		delete(completionRegistry, c.args[1])
+		delete(c.sh.completions, c.args[1])
 	}
 }
 
