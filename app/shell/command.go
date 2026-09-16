@@ -301,6 +301,21 @@ func (c *Command) completeCMD() {
 func (c *Command) historyCMD() {
 	start := 0
 	if len(c.args) > 0 {
+		if c.args[0] == "-r" {
+			if len(c.args) < 2 {
+				fmt.Fprintf(c.stderr, "%s: %s: No such file or directory\n", builtinHistory, c.args[1])
+				return
+			}
+
+			fileHistory, err := loadHistory(c.args[1])
+			if err != nil {
+				fmt.Fprintln(c.stderr, err)
+				return
+			}
+
+			history = append(history, fileHistory...)
+		}
+
 		if n, err := strconv.Atoi(c.args[0]); err == nil && n < len(history) {
 			start = len(history) - n
 		}
