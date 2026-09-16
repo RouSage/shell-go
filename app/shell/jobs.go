@@ -22,7 +22,6 @@ func (job *Job) String() string {
 
 type Jobs struct {
 	jobMap map[int]*Job
-	nextID int
 	mu     sync.Mutex
 }
 
@@ -53,9 +52,8 @@ func (j *Jobs) MarkJobDone(jobId int) {
 }
 
 func (j *Jobs) addJob(name string, cmd *exec.Cmd) *Job {
-	j.nextID++
 	job := &Job{
-		id:   j.nextID,
+		id:   len(j.jobMap) + 1,
 		name: name,
 		cmd:  cmd,
 		done: false,
