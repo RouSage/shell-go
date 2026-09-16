@@ -314,6 +314,7 @@ func (c *Command) historyCMD() {
 			}
 
 			history = append(history, fileHistory...)
+			return
 		}
 
 		if n, err := strconv.Atoi(c.args[0]); err == nil && n < len(history) {
