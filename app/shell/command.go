@@ -28,7 +28,10 @@ const (
 var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd, builtinCd, builtinComplete, builtinJobs, builtinHistory}
 var redirectOps = []string{">", "1>", "2>", ">>", "1>>", "2>>"}
 var completionRegistry = make(map[string]string)
-var history = make([]string, 0)
+var (
+	history      = make([]string, 0)
+	lastAppended = 0
+)
 
 // redirect is one `op target` pair taken off the command line, e.g. `2>> log`.
 type redirect struct {
@@ -307,9 +310,10 @@ func (c *Command) historyCMD() {
 	}
 
 	if len(c.args) == 2 {
+		path := c.args[1]
 		switch c.args[0] {
 		case "-r":
-			fileHistory, err := loadHistory(c.args[1])
+			fileHistory, err := loadHistory(path)
 			if err != nil {
 				fmt.Fprintln(c.stderr, err)
 				return
@@ -318,10 +322,18 @@ func (c *Command) historyCMD() {
 			history = append(history, fileHistory...)
 			return
 		case "-w":
-			err := saveHistory(c.args[1], history)
+			err := saveHistory(path, history)
 			if err != nil {
 				fmt.Fprintf(c.stderr, "%s: error writing file: %v\n", builtinHistory, err)
 			}
+			return
+		case "-a":
+			err := appendHistory(path, history[lastAppended:])
+			if err != nil {
+				fmt.Fprintf(c.stderr, "%s: error appending file: %v\n", builtinHistory, err)
+			}
+
+			lastAppended = len(history)
 			return
 		}
 	}
