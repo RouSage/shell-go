@@ -5,5 +5,6 @@ import (
 )
 
 func main() {
-	shell.REPL()
+	sh := shell.New()
+	sh.REPL()
 }

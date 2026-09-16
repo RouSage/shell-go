@@ -8,7 +8,17 @@ import (
 	"github.com/chzyer/readline"
 )
 
-func REPL() {
+type Shell struct {
+	history *History
+}
+
+func New() *Shell {
+	return &Shell{
+		history: NewHistory(),
+	}
+}
+
+func (s *Shell) REPL() {
 	completer := NewCompleter()
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:          "$ ",
@@ -37,7 +47,7 @@ func REPL() {
 			continue
 		}
 
-		pipeline := NewPipeline(command)
+		pipeline := NewPipeline(s, command)
 		if pipeline == nil {
 			continue
 		}

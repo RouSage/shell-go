@@ -28,10 +28,6 @@ const (
 var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd, builtinCd, builtinComplete, builtinJobs, builtinHistory}
 var redirectOps = []string{">", "1>", "2>", ">>", "1>>", "2>>"}
 var completionRegistry = make(map[string]string)
-var (
-	history      = make([]string, 0)
-	lastAppended = 0
-)
 
 // redirect is one `op target` pair taken off the command line, e.g. `2>> log`.
 type redirect struct {
@@ -40,6 +36,8 @@ type redirect struct {
 }
 
 type Command struct {
+	sh *Shell
+
 	command   string
 	args      []string
 	redirects []redirect
@@ -50,7 +48,7 @@ type Command struct {
 	stderr     io.Writer
 }
 
-func newCommand(tokens []Token) *Command {
+func newCommand(shell *Shell, tokens []Token) *Command {
 	if len(tokens) == 0 {
 		return nil
 	}
@@ -77,6 +75,7 @@ func newCommand(tokens []Token) *Command {
 	}
 
 	return &Command{
+		sh:        shell,
 		command:   args[0],
 		args:      args[1:],
 		redirects: redirects,
@@ -100,7 +99,7 @@ func (c *Command) handle() {
 	closeRedirects := c.applyRedirects()
 	defer closeRedirects()
 
-	history = append(history, c.String())
+	c.sh.history.Add(c.String())
 
 	c.run()
 }
@@ -302,43 +301,40 @@ func (c *Command) completeCMD() {
 }
 
 func (c *Command) historyCMD() {
-	start := 0
-	if len(c.args) == 1 {
-		if n, err := strconv.Atoi(c.args[0]); err == nil && n < len(history) {
-			start = len(history) - n
-		}
-	}
-
 	if len(c.args) == 2 {
 		path := c.args[1]
 		switch c.args[0] {
 		case "-r":
-			fileHistory, err := loadHistory(path)
+			err := c.sh.history.Read(path)
 			if err != nil {
 				fmt.Fprintln(c.stderr, err)
-				return
 			}
 
-			history = append(history, fileHistory...)
 			return
 		case "-w":
-			err := saveHistory(path, history)
+			err := c.sh.history.Write(path)
 			if err != nil {
 				fmt.Fprintf(c.stderr, "%s: error writing file: %v\n", builtinHistory, err)
 			}
+
 			return
 		case "-a":
-			err := appendHistory(path, history[lastAppended:])
+			err := c.sh.history.Append(path)
 			if err != nil {
 				fmt.Fprintf(c.stderr, "%s: error appending file: %v\n", builtinHistory, err)
+
 			}
 
-			lastAppended = len(history)
 			return
 		}
 	}
 
-	for i := start; i < len(history); i++ {
-		fmt.Fprintf(c.stdout, "%4d  %s\n", i+1, history[i])
+	start := 0
+	if len(c.args) == 1 {
+		if n, err := strconv.Atoi(c.args[0]); err == nil && n < c.sh.history.Len() {
+			start = c.sh.history.Len() - n
+		}
 	}
+
+	c.sh.history.Print(c.stdout, start)
 }

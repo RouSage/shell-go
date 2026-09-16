@@ -20,7 +20,7 @@ type Pipeline struct {
 	wg         sync.WaitGroup
 }
 
-func NewPipeline(input string) *Pipeline {
+func NewPipeline(shell *Shell, input string) *Pipeline {
 	segments := parseSegments(input)
 	if len(segments) == 0 {
 		return nil
@@ -41,7 +41,7 @@ func NewPipeline(input string) *Pipeline {
 	}
 
 	for _, args := range segments {
-		cmd := newCommand(args)
+		cmd := newCommand(shell, args)
 		if cmd == nil {
 			return nil
 		}
