@@ -300,13 +300,15 @@ func (c *Command) completeCMD() {
 
 func (c *Command) historyCMD() {
 	start := 0
-	if len(c.args) > 0 {
-		if c.args[0] == "-r" {
-			if len(c.args) < 2 {
-				fmt.Fprintf(c.stderr, "%s: %s: No such file or directory\n", builtinHistory, c.args[1])
-				return
-			}
+	if len(c.args) == 1 {
+		if n, err := strconv.Atoi(c.args[0]); err == nil && n < len(history) {
+			start = len(history) - n
+		}
+	}
 
+	if len(c.args) == 2 {
+		switch c.args[0] {
+		case "-r":
 			fileHistory, err := loadHistory(c.args[1])
 			if err != nil {
 				fmt.Fprintln(c.stderr, err)
@@ -315,10 +317,12 @@ func (c *Command) historyCMD() {
 
 			history = append(history, fileHistory...)
 			return
-		}
-
-		if n, err := strconv.Atoi(c.args[0]); err == nil && n < len(history) {
-			start = len(history) - n
+		case "-w":
+			err := saveHistory(c.args[1], history)
+			if err != nil {
+				fmt.Fprintf(c.stderr, "%s: error writing file: %v\n", builtinHistory, err)
+			}
+			return
 		}
 	}
 

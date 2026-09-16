@@ -39,3 +39,13 @@ func loadHistory(path string) ([]string, error) {
 
 	return history, nil
 }
+
+func saveHistory(path string, history []string) error {
+	data := strings.Join(history, "\n")
+	data += "\n"
+	if err := os.WriteFile(path, []byte(data), 0644); err != nil {
+		return err
+	}
+
+	return nil
+}
