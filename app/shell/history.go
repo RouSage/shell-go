@@ -98,6 +98,13 @@ func (h *History) Write(path string) error {
 // advancing lastAppended is one read-modify-write, and splitting it would let
 // two concurrent `history -a` stages duplicate or drop lines.
 func (h *History) Append(path string) error {
+	if path == "" {
+		path = h.historyFile
+	}
+	if path == "" {
+		return nil
+	}
+
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
