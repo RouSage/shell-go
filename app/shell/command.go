@@ -207,9 +207,9 @@ func (c *Command) newExecCmd() *exec.Cmd {
 }
 
 func (c *Command) exitCMD() {
-	err := c.sh.history.Append("")
+	err := c.sh.history.Write("")
 	if err != nil {
-		fmt.Fprintf(c.stderr, "%s: error appending file: %v\n", builtinHistory, err)
+		fmt.Fprintf(c.stderr, "%s: error writing file: %v\n", builtinHistory, err)
 	}
 
 	os.Exit(0)
