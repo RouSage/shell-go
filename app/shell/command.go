@@ -23,9 +23,10 @@ const (
 	builtinComplete builtin = "complete"
 	builtinJobs     builtin = "jobs"
 	builtinHistory  builtin = "history"
+	builtinDeclare  builtin = "declare"
 )
 
-var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd, builtinCd, builtinComplete, builtinJobs, builtinHistory}
+var builtins = []builtin{builtinEcho, builtinExit, builtinType, builtinPwd, builtinCd, builtinComplete, builtinJobs, builtinHistory, builtinDeclare}
 var redirectOps = []string{">", "1>", "2>", ">>", "1>>", "2>>"}
 
 // redirect is one `op target` pair taken off the command line, e.g. `2>> log`.
