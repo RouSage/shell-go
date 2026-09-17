@@ -28,6 +28,7 @@ func (s *Shell) REPL() {
 		Prompt:          "$ ",
 		AutoComplete:    completer,
 		InterruptPrompt: "^C",
+		HistoryFile:     s.history.historyFile,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating readline: %v\n", err)

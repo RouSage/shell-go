@@ -12,13 +12,15 @@ import (
 type History struct {
 	entries      []string
 	lastAppended int
+	historyFile  string
 	mu           sync.Mutex
 }
 
 func NewHistory() *History {
 	entries := make([]string, 0)
 
-	if historyFile := os.Getenv("HISTFILE"); historyFile != "" {
+	historyFile := os.Getenv("HISTFILE")
+	if historyFile != "" {
 		fileEntries, err := read(historyFile)
 		if err != nil {
 			panic(err)
@@ -30,6 +32,7 @@ func NewHistory() *History {
 	return &History{
 		entries:      entries,
 		lastAppended: 0,
+		historyFile:  historyFile,
 	}
 }
 
@@ -79,6 +82,10 @@ func (h *History) Write(path string) error {
 	h.mu.Lock()
 	data := entriesToString(h.entries)
 	h.mu.Unlock()
+
+	if path == "" {
+		path = h.historyFile
+	}
 
 	return os.WriteFile(path, []byte(data), 0644)
 }

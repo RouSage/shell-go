@@ -177,7 +177,7 @@ func (c *Command) runBuiltinStage() {
 func (c *Command) builtinCMD() {
 	switch c.command {
 	case builtinExit:
-		os.Exit(0)
+		c.exitCMD()
 	case builtinEcho:
 		fmt.Fprintln(c.stdout, strings.Join(c.args, " "))
 	case builtinPwd:
@@ -204,6 +204,15 @@ func (c *Command) newExecCmd() *exec.Cmd {
 	cmd.Stderr = c.stderr
 
 	return cmd
+}
+
+func (c *Command) exitCMD() {
+	err := c.sh.history.Write("")
+	if err != nil {
+		fmt.Fprintf(c.stderr, "%s: error writing file: %v\n", builtinHistory, err)
+	}
+
+	os.Exit(0)
 }
 
 func (c *Command) execCMD() error {
