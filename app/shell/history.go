@@ -79,13 +79,16 @@ func (h *History) Read(path string) error {
 }
 
 func (h *History) Write(path string) error {
-	h.mu.Lock()
-	data := entriesToString(h.entries)
-	h.mu.Unlock()
-
 	if path == "" {
 		path = h.historyFile
 	}
+	if path == "" {
+		return nil
+	}
+
+	h.mu.Lock()
+	data := entriesToString(h.entries)
+	h.mu.Unlock()
 
 	return os.WriteFile(path, []byte(data), 0644)
 }
