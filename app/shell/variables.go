@@ -33,9 +33,6 @@ func (v *Variables) Get(key string) (string, bool) {
 }
 
 func (v *Variables) Parse(args []string) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-
 	for _, arg := range args {
 		key, value, found := strings.Cut(arg, "=")
 		if !found {
