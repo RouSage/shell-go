@@ -193,6 +193,8 @@ func (c *Command) builtinCMD() {
 		c.jobsCMD()
 	case builtinHistory:
 		c.historyCMD()
+	case builtinDeclare:
+		c.declareCMD()
 	}
 }
 
@@ -346,4 +348,14 @@ func (c *Command) historyCMD() {
 	}
 
 	c.sh.history.Print(c.stdout, start)
+}
+
+func (c *Command) declareCMD() {
+	if len(c.args) == 2 {
+		variable := c.args[1]
+		switch c.args[0] {
+		case "-p":
+			fmt.Fprintf(c.stderr, "%s: %s: not found\n", builtinDeclare, variable)
+		}
+	}
 }
