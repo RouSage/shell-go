@@ -367,14 +367,5 @@ func (c *Command) declareCMD() {
 		return
 	}
 
-	for _, arg := range c.args {
-		key, value, found := strings.Cut(arg, "=")
-		if !found {
-			continue
-		}
-
-		if key != "" && value != "" {
-			c.sh.variables.Set(key, value)
-		}
-	}
+	c.sh.variables.Parse(c.args)
 }

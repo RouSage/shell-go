@@ -1,6 +1,9 @@
 package shell
 
-import "sync"
+import (
+	"strings"
+	"sync"
+)
 
 type Variables struct {
 	values map[string]string
@@ -27,4 +30,20 @@ func (v *Variables) Get(key string) (string, bool) {
 	}
 
 	return value, ok
+}
+
+func (v *Variables) Parse(args []string) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	for _, arg := range args {
+		key, value, found := strings.Cut(arg, "=")
+		if !found {
+			continue
+		}
+
+		if key != "" && value != "" {
+			v.Set(key, value)
+		}
+	}
 }
