@@ -351,11 +351,29 @@ func (c *Command) historyCMD() {
 }
 
 func (c *Command) declareCMD() {
-	if len(c.args) == 2 {
-		variable := c.args[1]
-		switch c.args[0] {
-		case "-p":
-			fmt.Fprintf(c.stderr, "%s: %s: not found\n", builtinDeclare, variable)
+	if len(c.args) == 0 {
+		return
+	}
+
+	if len(c.args) >= 2 && c.args[0] == "-p" {
+		key := c.args[1]
+		value, found := c.sh.variables.Get(key)
+		if !found {
+			fmt.Fprintf(c.stderr, "%s: %s: not found\n", builtinDeclare, key)
+		}
+		fmt.Fprintf(c.stdout, "%s -- %s=%q\n", builtinDeclare, key, value)
+
+		return
+	}
+
+	for _, arg := range c.args {
+		key, value, found := strings.Cut(arg, "=")
+		if !found {
+			continue
+		}
+
+		if key != "" && value != "" {
+			c.sh.variables.Set(key, value)
 		}
 	}
 }

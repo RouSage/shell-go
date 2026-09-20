@@ -11,6 +11,7 @@ import (
 type Shell struct {
 	history     *History
 	jobs        *Jobs
+	variables   *Variables
 	completions map[string]string
 }
 
@@ -18,6 +19,7 @@ func New() *Shell {
 	return &Shell{
 		history:     NewHistory(),
 		jobs:        NewJobs(),
+		variables:   NewVariables(),
 		completions: map[string]string{},
 	}
 }
