@@ -360,6 +360,7 @@ func (c *Command) declareCMD() {
 		value, found := c.sh.variables.Get(key)
 		if !found {
 			fmt.Fprintf(c.stderr, "%s: %s: not found\n", builtinDeclare, key)
+			return
 		}
 		fmt.Fprintf(c.stdout, "%s -- %s=%q\n", builtinDeclare, key, value)
 
