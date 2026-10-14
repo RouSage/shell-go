@@ -3,6 +3,7 @@ package shell
 import (
 	"strings"
 	"sync"
+	"unicode"
 )
 
 type Variables struct {
@@ -32,15 +33,40 @@ func (v *Variables) Get(key string) (string, bool) {
 	return value, ok
 }
 
-func (v *Variables) Parse(args []string) {
+func (v *Variables) Parse(args []string) (string, bool) {
 	for _, arg := range args {
-		key, value, found := strings.Cut(arg, "=")
+		identifier, value, found := strings.Cut(arg, "=")
 		if !found {
 			continue
 		}
 
-		if key != "" && value != "" {
-			v.Set(key, value)
+		if identifier != "" && value != "" {
+			if isValid := validateIdentifier(identifier); !isValid {
+				return arg, false
+			}
+
+			v.Set(identifier, value)
 		}
 	}
+
+	return "", true
+}
+
+func validateIdentifier(name string) bool {
+	for i, ch := range name {
+		// Must start with a letter or an underscore
+		if i == 0 {
+			if ch != '_' && !unicode.IsLetter(ch) {
+				return false
+			}
+
+			continue
+		}
+
+		if ch != '_' && !unicode.IsLetter(ch) && !unicode.IsDigit(ch) {
+			return false
+		}
+	}
+
+	return true
 }
