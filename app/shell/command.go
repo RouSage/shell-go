@@ -369,6 +369,6 @@ func (c *Command) declareCMD() {
 
 	arg, isValid := c.sh.variables.Parse(c.args)
 	if !isValid {
-		fmt.Fprintf(c.stderr, "%s: '%s': not a valid identifier\n", builtinDeclare, arg)
+		fmt.Fprintf(c.stderr, "%s: `%s': not a valid identifier\n", builtinDeclare, arg)
 	}
 }
