@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"regexp"
 	"strings"
 	"sync"
 	"unicode"
@@ -53,13 +54,16 @@ func (v *Variables) Parse(args []string) (string, bool) {
 }
 
 func (v *Variables) ExpandArg(arg string) string {
-	if keys := strings.SplitN(arg, "$", 2); len(keys) == 2 {
-		value, ok := v.Get(keys[1])
+	re := regexp.MustCompile(`\$[A-Za-z_]\w*`)
+	matches := re.FindAllString(arg, -1)
+	for _, match := range matches {
+		key := match[1:]
+		value, ok := v.Get(key)
 		if !ok {
 			return arg
 		}
 
-		return keys[0] + value
+		arg = strings.ReplaceAll(arg, match, value)
 	}
 
 	return arg
