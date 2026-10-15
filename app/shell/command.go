@@ -58,16 +58,18 @@ func newCommand(shell *Shell, tokens []Token) *Command {
 
 	for i := 0; i < len(tokens); i++ {
 		token := tokens[i]
+		arg := shell.variables.ExpandArg(token.value)
+
 		// An unquoted redirect operator claims the next token as its target and
 		// both leave the argument list, so `echo a > out.txt` runs as `echo a`.
 		// A quoted `>` never gets op set, so `echo ">" file` stays two args.
-		if token.op && slices.Contains(redirectOps, token.value) && i+1 < len(tokens) {
-			redirects = append(redirects, redirect{op: token.value, target: tokens[i+1].value})
+		if token.op && slices.Contains(redirectOps, arg) && i+1 < len(tokens) {
+			redirects = append(redirects, redirect{op: arg, target: tokens[i+1].value})
 			i++
 			continue
 		}
 
-		args = append(args, token.value)
+		args = append(args, arg)
 	}
 
 	if len(args) == 0 {

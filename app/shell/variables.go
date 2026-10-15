@@ -52,6 +52,19 @@ func (v *Variables) Parse(args []string) (string, bool) {
 	return "", true
 }
 
+func (v *Variables) ExpandArg(arg string) string {
+	if key, found := strings.CutPrefix(arg, "$"); found {
+		value, ok := v.Get(key)
+		if !ok {
+			return arg
+		}
+
+		return value
+	}
+
+	return arg
+}
+
 func validateIdentifier(name string) bool {
 	for i, ch := range name {
 		// Must start with a letter or an underscore
