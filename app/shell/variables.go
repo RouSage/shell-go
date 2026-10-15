@@ -55,11 +55,7 @@ func (v *Variables) Parse(args []string) (string, bool) {
 
 func (v *Variables) ExpandArg(arg string) string {
 	return os.Expand(arg, func(key string) string {
-		value, found := v.Get(key)
-		if !found {
-			return arg
-		}
-
+		value, _ := v.Get(key)
 		return value
 	})
 }
