@@ -59,6 +59,9 @@ func newCommand(shell *Shell, tokens []Token) *Command {
 	for i := 0; i < len(tokens); i++ {
 		token := tokens[i]
 		arg := shell.variables.ExpandArg(token.value)
+		if arg == "" {
+			continue
+		}
 
 		// An unquoted redirect operator claims the next token as its target and
 		// both leave the argument list, so `echo a > out.txt` runs as `echo a`.
