@@ -53,7 +53,7 @@ func (v *Variables) Parse(args []string) (string, bool) {
 }
 
 func (v *Variables) ExpandArg(arg string) string {
-	if key, found := strings.CutPrefix(arg, "$"); found {
+	if _, key, found := strings.CutLast(arg, "$"); found {
 		value, ok := v.Get(key)
 		if !ok {
 			return arg
