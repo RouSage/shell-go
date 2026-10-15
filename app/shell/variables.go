@@ -53,13 +53,13 @@ func (v *Variables) Parse(args []string) (string, bool) {
 }
 
 func (v *Variables) ExpandArg(arg string) string {
-	if keys := strings.SplitN(arg, "$", 2); len(keys) >= 2 {
+	if keys := strings.SplitN(arg, "$", 2); len(keys) == 2 {
 		value, ok := v.Get(keys[1])
 		if !ok {
 			return arg
 		}
 
-		return value
+		return keys[0] + value
 	}
 
 	return arg
